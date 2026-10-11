@@ -39,15 +39,28 @@ created: "2026-10-11"
 
 ## Per-Task Verification Map
 
+Commands assume cwd = repo root and the dev virtualenv `.venv` created by 01-01 Task 1 (`.venv/bin/python`); any plan run in a fresh worktree recreates it first. Threat refs point at the `<threat_model>` tables in the PLAN files.
+
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| (filled by planner) | | | FND-01 | credential disclosure | no credential literal in tracked source; missing key fails fast; `.env.example` names only | unit | `python -m pytest -q tests/test_no_hardcoded_credentials.py tests/test_settings.py` | ❌ W0 | ⬜ pending |
-| (filled by planner) | | | FND-01 | credential disclosure | gitleaks working tree and new-commit range clean | CI + local | `bash scripts/gitleaks_scan.sh ...` (exit 0) | ❌ W0 | ⬜ pending |
-| (filled by planner) | | | FND-02 | fabricated-success / key leak via exception text | GNews 401 returns 502 problem+json, not 200; 403/429/5xx/timeout/ConnectionError/non-JSON/null-field mapped; key/URL absent from body and logs | integration | `python -m pytest -q tests/test_upstream_errors.py` (incl. `::test_gnews_401_returns_502_not_200`) | ❌ W0 | ⬜ pending |
-| (filled by planner) | | | FND-03 | unlabelled synthetic data | every response carries `synthetic` / `data_as_of` / `source_status`; live has no `events`; fixture only under `DEMO_MODE=true`; error bodies carry provenance too (D-15) | integration | `python -m pytest -q tests/test_provenance_demo.py` | ❌ W0 | ⬜ pending |
-| (filled by planner) | | | FND-04 | input abuse | empty / whitespace / 201-char / control-char / missing query returns 422 problem+json without echoing input; OpenAPI has a typed 2xx schema for every operation | contract | `python -m pytest -q tests/test_validation_openapi.py` | ❌ W0 | ⬜ pending |
-| (filled by planner) | | | FND-05 | regression risk | `analyze_risk` golden table + strict-xfail defects; simulator invariants + strict-xfail child-before-parent; legacy `/analyze` shape; unmocked network blocked — committed BEFORE any behavioural change | unit | `python -m pytest -q tests/test_char_risk_analyzer.py tests/test_char_simulator.py tests/test_char_analyze_legacy.py` | ❌ W0 | ⬜ pending |
-| (filled by planner) | | | FND-06 | overclaiming | banned phrases fail, allow marker works, README contains the required phrase, OpenAPI strings clean | unit | `python -m pytest -q tests/test_copy_guard.py` and `python scripts/copy_guard.py` | ❌ W0 | ⬜ pending |
+| 01-01-01 | 01-01 | 1 | FND-05 | T-01-01, T-01-SC | unmocked network blocked; five env names scrubbed; only the fake key travels on outbound test requests; pinned stack incl. `httpx==0.28.1` (D-18) | unit + integration | `.venv/bin/python -m pytest -q tests/test_network_guard.py` | ❌ W0 | ⬜ pending |
+| 01-01-02 | 01-01 | 1 | FND-05 | T-01-03 | `analyze_risk` golden table + 8 strict-xfail defects; simulator invariants + strict-xfail child-before-parent and mixed formats | unit | `.venv/bin/python -m pytest -q tests/test_char_risk_analyzer.py tests/test_char_simulator.py` | ❌ W0 | ⬜ pending |
+| 01-01-03 | 01-01 | 1 | FND-05 | T-01-03, T-01-04 | legacy `/analyze` shape pinned; fabricated-200 / 500 / no-validation defects as strict xfails; committed BEFORE any behavioural change (no production module differs from 9b5b085) | integration | `.venv/bin/python -m pytest -q -rx tests/test_char_analyze_legacy.py` (file retired in 01-05-01) | ❌ W0 | ⬜ pending |
+| 01-02-01 | 01-02 | 2 | FND-01 | T-01-05, T-01-06, T-01-09 | key read only from env and sent only in `X-Api-Key`; missing key raises ConfigurationError at startup with zero upstream calls | integration | `.venv/bin/python -m pytest -q tests/test_settings.py` | ❌ W0 | ⬜ pending |
+| 01-02-02 | 01-02 | 2 | FND-01 | T-01-07, T-01-08 | DEMO_MODE parsing; blank key = missing; no secret in startup errors or repr; real `uvicorn main:app` exits 3 | unit + subprocess | `.venv/bin/python -m pytest -q tests/test_settings.py` | ❌ W0 | ⬜ pending |
+| 01-02-03 | 01-02 | 2 | FND-01 | T-01-05, T-01-10 | no credential literal in tracked/unignored files; `.env.example` names only; `.gitignore` semantics | unit | `.venv/bin/python -m pytest -q tests/test_no_hardcoded_credentials.py` | ❌ W0 | ⬜ pending |
+| 01-03-01 | 01-03 | 2 | FND-03 | T-01-12 | committed fixture validates as `AnalyzeResponse` and is labelled synthetic | unit | `.venv/bin/python -m pytest -q tests/test_demo_fixture.py` | ❌ W0 | ⬜ pending |
+| 01-03-02 | 01-03 | 2 | FND-03 | T-01-12, T-01-14, T-01-16 | three risk labels; monotone UTC `Z` timelines; LiveResult cannot carry `events`; Problem model shape | unit | `.venv/bin/python -m pytest -q tests/test_demo_fixture.py tests/test_response_models.py` | ❌ W0 | ⬜ pending |
+| 01-03-03 | 01-03 | 2 | FND-03 | T-01-13, T-01-15 | byte-for-byte regeneration; a hand edit (e.g. synthetic flipped) fails `--check` | unit | `.venv/bin/python scripts/generate_demo_fixture.py --check` and `.venv/bin/python -m pytest -q tests/test_demo_fixture.py` | ❌ W0 | ⬜ pending |
+| 01-04-01 | 01-04 | 3 | FND-02 | T-01-17, T-01-18 | GNews 401 returns 502 problem+json, not 200; no key, host or URL in body, logs or exception | integration | `.venv/bin/python -m pytest -q tests/test_upstream_errors.py::test_gnews_401_returns_502_not_200` | ❌ W0 | ⬜ pending |
+| 01-04-02 | 01-04 | 3 | FND-02 | T-01-17, T-01-18, T-01-20, T-01-21 | 403/400/5xx/non-JSON/null-field/naive-date -> 502; timeout/unreachable/429 -> 503 + Retry-After (cap 3600); `totalArticles: 0` valid empty; raised `from None`; timeout (3.05, 10) | integration | `.venv/bin/python -m pytest -q tests/test_upstream_errors.py` | ❌ W0 | ⬜ pending |
+| 01-04-03 | 01-04 | 3 | FND-04 | T-01-19, T-01-22, T-01-23 | empty / whitespace / 201-char / control-char / missing query -> 422 problem+json without echoing input; 404/405/not_configured/500 share the shape | integration | `.venv/bin/python -m pytest -q tests/test_request_validation.py` | ❌ W0 | ⬜ pending |
+| 01-05-01 | 01-05 | 4 | FND-03 | T-01-25, T-01-26 | envelope `{results, meta}` with provenance; live results have no `events`; fabricated fallback gone; legacy list tests retired with replacement map | integration | `.venv/bin/python -m pytest -q tests/test_provenance_demo.py` | ❌ W0 | ⬜ pending |
+| 01-05-02 | 01-05 | 4 | FND-03 | T-01-24, T-01-27, T-01-28 | fixture served only under `DEMO_MODE=true` and only if labelled synthetic; empty -> honest 200; provenance on every response incl. errors (D-15) | integration | `.venv/bin/python -m pytest -q tests/test_provenance_demo.py` | ❌ W0 | ⬜ pending |
+| 01-05-03 | 01-05 | 4 | FND-04 | T-01-29 | OpenAPI: typed 2xx schema for every operation; 422/500/502/503 problem+json; real bodies match declared models; honest metadata copy | contract | `.venv/bin/python -m pytest -q tests/test_openapi_contract.py` | ❌ W0 | ⬜ pending |
+| 01-06-01 | 01-06 | 5 | FND-06 | T-01-34 | banned phrases fail, allow marker works, README contains the required phrase, OpenAPI strings clean | unit | `.venv/bin/python -m pytest -q tests/test_copy_guard.py` and `.venv/bin/python scripts/copy_guard.py` | ❌ W0 | ⬜ pending |
+| 01-06-02 | 01-06 | 5 | FND-01 | T-01-30, T-01-31, T-01-32, T-01-36, T-01-37 | gitleaks (sha256-pinned) clean on git-visible working tree and `a5dd825..HEAD`; exits 2 on an unusable range | CI script, local | `bash scripts/install_gitleaks.sh "${TMPDIR:-/tmp}/truthtrail-gitleaks" && bash scripts/gitleaks_scan.sh "${TMPDIR:-/tmp}/truthtrail-gitleaks/gitleaks" a5dd8257e920923677c60e70611a6f36d87747b2 HEAD a5dd8257e920923677c60e70611a6f36d87747b2` | ❌ W0 | ⬜ pending |
+| 01-06-03 | 01-06 | 5 | FND-06, FND-01 | T-01-32, T-01-33, T-01-SC | CI runs copy-guard, gitleaks and tests jobs; SHA-pinned actions; `permissions: contents: read`; no secrets referenced | config contract | `.venv/bin/python -c "import yaml; d = yaml.safe_load(open('.github/workflows/ci.yml')); assert set(d['jobs']) == {'copy-guard', 'gitleaks', 'tests'}"` and `.venv/bin/python -m pytest -q` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -55,12 +68,14 @@ created: "2026-10-11"
 
 ## Wave 0 Requirements
 
-- [ ] `pytest.ini`, pinned `requirements.txt` (adds `pydantic`, `pydantic-settings`), `requirements-dev.txt`
-- [ ] `tests/conftest.py` — autouse network guard, env scrub, `client_factory`, `mock_gnews` (**first commit of the phase**; the real key is still live in source until the removal plan lands)
-- [ ] `tests/test_char_risk_analyzer.py`, `tests/test_char_simulator.py`, `tests/test_char_analyze_legacy.py` — committed before any behavioural change
-- [ ] `tests/test_no_hardcoded_credentials.py` (regex backstop for the entropy gap in gitleaks), `tests/test_settings.py`, `tests/test_upstream_errors.py`, `tests/test_provenance_demo.py`, `tests/test_validation_openapi.py`, `tests/test_copy_guard.py`
-- [ ] `scripts/copy_guard.py`, `scripts/gitleaks_scan.sh`, `scripts/generate_demo_fixture.py`
-- [ ] Framework install: `python -m venv .venv && . .venv/bin/activate && pip install -r requirements-dev.txt`
+- [ ] `pytest.ini`, pinned `requirements.txt` (adds `pydantic`, `pydantic-settings`), `requirements-dev.txt` (01-01-01)
+- [ ] `tests/conftest.py` — autouse network guard, env scrub, `client_factory`, `mock_gnews` (**first commit of the phase**, 01-01-01; the real key is still live in source until 01-02 lands) plus `tests/test_network_guard.py`
+- [ ] `tests/test_char_risk_analyzer.py`, `tests/test_char_simulator.py`, `tests/test_char_analyze_legacy.py` — committed before any behavioural change (01-01-02, 01-01-03)
+- [ ] `tests/test_settings.py`, `tests/test_no_hardcoded_credentials.py` (regex backstop for the entropy gap in gitleaks) (01-02)
+- [ ] `tests/test_demo_fixture.py`, `tests/test_response_models.py` (01-03)
+- [ ] `tests/test_upstream_errors.py`, `tests/test_request_validation.py` (01-04); `tests/test_provenance_demo.py`, `tests/test_openapi_contract.py` (01-05); `tests/test_copy_guard.py` (01-06) — the seeded name `test_validation_openapi.py` was split into `test_request_validation.py` and `test_openapi_contract.py`
+- [ ] `scripts/generate_demo_fixture.py` (01-03), `scripts/copy_guard.py`, `scripts/install_gitleaks.sh`, `scripts/gitleaks_scan.sh` (01-06)
+- [ ] Framework install: `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt` (01-01-01)
 
 ---
 

@@ -35,7 +35,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Every API response carries `synthetic`, `data_as_of` and `source_status`; with `DEMO_MODE` unset or false no fixture data can be served, and with `DEMO_MODE=true` any fixture response is flagged `synthetic: true` (both proven by tests).
   4. An empty, oversize or malformed query is rejected with 422, and `/openapi.json` shows a Pydantic response model for every endpoint (checked by a test that walks the schema).
   5. Characterization tests pinning current `/analyze` behaviour, known keyword defects included (e.g. "secure" matching "cure", "studies" matching "dies", "couple" matching "coup"), are committed before any behavioural change, and a CI check fails when README, API docs or UI copy contains banned phrases such as "detects the truth" or a "FAKE" verdict badge; the README now says "flag for human review".
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Wave 1: test harness, autouse network guard and characterization tests (defects as strict xfails), before any behavioural change (FND-05)
+- [ ] 01-02-PLAN.md — Wave 2: env-only settings, fail-fast startup, key out of source and into the X-Api-Key header, .env.example/.gitignore, credential backstop (FND-01)
+- [ ] 01-03-PLAN.md — Wave 2 (parallel with 01-02): envelope/Problem models and the deterministic, labelled synthetic demo fixture (FND-03)
+- [ ] 01-04-PLAN.md — Wave 3: typed GNews errors, RFC 9457 problem+json for every error, 401 -> 502 test, 422 input validation (FND-02, FND-04)
+- [ ] 01-05-PLAN.md — Wave 4: provenance envelope on /analyze, DEMO_MODE-only fixture, provenance on every response, typed OpenAPI contract (FND-03, FND-04)
+- [ ] 01-06-PLAN.md — Wave 5: honest README, copy guard, pinned fail-closed gitleaks scan, minimal CI workflow (FND-06, FND-01)
 
 ### Phase 2: Engineering Baseline
 **Goal**: The service is a properly packaged, tested, containerised and CI-guarded FastAPI app, with a versioned `/v1` router mount point that Phases 3 and 4 can extend independently, so data and ML code land on a solid base.
