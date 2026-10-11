@@ -72,6 +72,9 @@ Every risk score and every cascade the system shows is backed by real data and a
 | Rotate the leaked GNews key; do not rewrite git history by default | Rotation neutralizes the risk; a force-push on a shared repo is destructive and needs explicit owner approval | ✓ Good (key rotated) |
 | GSD installed globally; `.planning/` committed | Cloud container is ephemeral, so planning state must live in the repo; global install keeps GSD command files out of the portfolio repo | — Pending |
 | Interactive workflow mode, Standard granularity, project-level research first | Owner's choices at initialization | — Pending |
+| Bluesky Jetstream v2 as the propagation source; Mastodon deferred to v2 | Free, unauthenticated, per-record timestamps and explicit parent/subject URIs; Mastodon `reblogged_by` has no boost time and sees only a federated slice (research, 2026-10-11; confirm in the Phase 3 spike) | — Pending |
+| Primary experience is a triage feed of tracked cascades ranked by risk x velocity, plus a "score this text" playground; query-driven `/analyze` is no longer the core flow | Jetstream filters only by collection and DID, and Replay is metered, so "any claim, any time" is not deliverable on free tiers | — Pending |
+| Collector is a bounded scheduled batch job (GitHub Actions), not a 24/7 worker, in the deployed demo | Render free cannot run workers and sleeps after 15 min; free Render Postgres expires after 30 days, so use Neon | — Pending |
 
 ## Evolution
 
