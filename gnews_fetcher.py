@@ -19,7 +19,7 @@ from pydantic import (
     ValidationError,
 )
 
-from config import ConfigurationError
+from config import ConfigurationError, is_header_safe_key
 from problems import UpstreamError
 
 logger = logging.getLogger(__name__)
@@ -85,12 +85,15 @@ def fetch_news(query: str, api_key: str) -> list[dict]:
 
     The credential travels only in the ``X-Api-Key`` request header, never in the
     URL, because ``requests`` error text embeds the full URL. Redirects are never
-    followed, so the key cannot be forwarded to another host. A blank key raises
-    ConfigurationError; any upstream failure or malformed payload raises
-    UpstreamError. ``publishedAt`` is returned as a UTC ``...Z`` string.
+    followed, so the key cannot be forwarded to another host. A blank or
+    header-unsafe key raises ConfigurationError; any upstream failure or malformed
+    payload raises UpstreamError. ``publishedAt`` is returned as a UTC ``...Z`` string.
     """
     if not api_key or not api_key.strip():
         raise ConfigurationError("GNEWS_API_KEY is not configured.")
+    if not is_header_safe_key(api_key):
+        # Never sent: requests would fail locally and the failure would look like a provider outage.
+        raise ConfigurationError("GNEWS_API_KEY is not a valid header value.")
 
     try:
         resp = requests.get(
@@ -110,12 +113,21 @@ def fetch_news(query: str, api_key: str) -> list[dict]:
             "The news provider timed out.",
             retry_after=DEFAULT_RETRY_AFTER,
         )
-    except requests.exceptions.RequestException:
+    except requests.exceptions.ConnectionError:
+        # Includes SSLError and ProxyError: the provider could not be reached at all.
         _fail(
             503,
             "upstream_unreachable",
             "The news provider could not be reached.",
             retry_after=DEFAULT_RETRY_AFTER,
+        )
+    except requests.exceptions.RequestException:
+        # Reached, but the answer was unusable (broken chunked/compressed body, too many
+        # redirects, invalid URL, ...): a bad upstream answer, not an outage (D-07).
+        _fail(
+            502,
+            "upstream_bad_response",
+            "The news provider returned an unusable response.",
         )
 
     status = resp.status_code

@@ -5,6 +5,7 @@ caches the settings on first use and is called once from the app lifespan so a
 missing or invalid configuration stops startup instead of failing a request.
 """
 
+import re
 from functools import lru_cache
 from typing import Any, Optional
 
@@ -14,6 +15,17 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class ConfigurationError(RuntimeError):
     """Raised at startup when required configuration is missing or invalid."""
+
+
+# An API key travels in an HTTP header: printable ASCII only, no whitespace of any kind.
+# Leading/trailing whitespace (a pasted newline) and non-latin-1 characters would otherwise
+# make `requests` fail at send time with an error that looks like a provider outage.
+_HEADER_SAFE_KEY = re.compile(r"[\x21-\x7e]+")
+
+
+def is_header_safe_key(value: str) -> bool:
+    """True when ``value`` can be sent verbatim as an HTTP header value."""
+    return _HEADER_SAFE_KEY.fullmatch(value) is not None
 
 
 class Settings(BaseSettings):
@@ -35,9 +47,18 @@ class Settings(BaseSettings):
     @field_validator("gnews_api_key", mode="before")
     @classmethod
     def _blank_key_is_missing(cls, value: Any) -> Any:
-        """Treat an empty or whitespace-only key as not configured."""
-        if isinstance(value, str) and not value.strip():
-            return None
+        """Treat a blank key as not configured; reject a key that cannot be an HTTP header value.
+
+        The message never contains the value.
+        """
+        if isinstance(value, str):
+            if not value.strip():
+                return None
+            if not is_header_safe_key(value):
+                raise ValueError(
+                    "GNEWS_API_KEY must be printable ASCII without spaces or line breaks "
+                    "(check for a pasted newline or stray whitespace)"
+                )
         return value
 
     @model_validator(mode="after")

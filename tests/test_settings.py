@@ -141,3 +141,81 @@ def test_uvicorn_exits_on_missing_key(tmp_path: Path) -> None:
     assert "GNEWS_API_KEY" in output
     assert "Application startup failed" in output
     assert "not-a-real" not in output
+
+
+# A pasted newline or stray space, an embedded control character, and non-ASCII text
+# (non-latin-1 and latin-1 alike) can never be a header value.
+BAD_KEYS = [
+    pytest.param("FAKE_TEST_KEY\n", id="trailing-newline"),
+    pytest.param(" FAKE_TEST_KEY", id="leading-space"),
+    pytest.param("FAKE_TEST_KEY ", id="trailing-space"),
+    pytest.param("FAKE_TEST\nKEY", id="embedded-newline"),
+    pytest.param("FAKE\tTEST", id="embedded-tab"),
+    pytest.param("FAKE TEST", id="embedded-space"),
+    pytest.param("FAKE_TEST_KEY✓", id="non-latin-1"),
+    pytest.param("FAKE_TEST_KEYé", id="latin-1-non-ascii"),
+]
+
+
+@pytest.mark.parametrize("bad_key", BAD_KEYS)
+def test_malformed_key_is_rejected_at_configuration_time(
+    monkeypatch: pytest.MonkeyPatch, mock_gnews: Any, bad_key: str
+) -> None:
+    monkeypatch.setenv("GNEWS_API_KEY", bad_key)
+    get_settings.cache_clear()
+
+    with pytest.raises(ConfigurationError) as excinfo:
+        get_settings()
+
+    message = str(excinfo.value)
+    leaked = bad_key.strip() in message or bad_key in message
+    assert "GNEWS_API_KEY" in message
+    assert not leaked
+    assert excinfo.value.__cause__ is None
+    assert len(mock_gnews.calls) == 0
+
+
+@pytest.mark.parametrize("bad_key", BAD_KEYS)
+def test_malformed_key_fails_startup_without_calling_the_provider(
+    client_factory: Any, mock_gnews: Any, bad_key: str
+) -> None:
+    with pytest.raises(ConfigurationError) as excinfo:
+        with client_factory(gnews_api_key=bad_key):
+            pass
+
+    leaked = "FAKE_TEST" in str(excinfo.value)
+    assert not leaked
+    assert len(mock_gnews.calls) == 0
+
+
+@pytest.mark.parametrize("bad_key", BAD_KEYS)
+def test_malformed_key_without_lifespan_is_500_not_configured(
+    client_factory: Any, mock_gnews: Any, gnews_url: str, gnews_payload: Any, bad_key: str
+) -> None:
+    """If the lifespan is bypassed, the request still answers not_configured and never reaches the provider."""
+    mock_gnews.get(gnews_url, json=gnews_payload())
+    client = client_factory(gnews_api_key=bad_key)
+
+    response = client.get("/analyze", params={"query": "x"})
+
+    body = response.json()
+    leaked = "FAKE_TEST" in response.text
+    assert response.status_code == 500
+    assert body["code"] == "not_configured"
+    assert body["source_status"] == "not_configured"
+    assert not leaked
+    assert len(mock_gnews.calls) == 0
+
+
+@pytest.mark.parametrize("bad_key", BAD_KEYS)
+def test_fetcher_never_sends_a_malformed_key(mock_gnews: Any, gnews_url: str, gnews_payload: Any, bad_key: str) -> None:
+    import gnews_fetcher
+
+    mock_gnews.get(gnews_url, json=gnews_payload())
+
+    with pytest.raises(ConfigurationError) as excinfo:
+        gnews_fetcher.fetch_news("x", bad_key)
+
+    leaked = "FAKE_TEST" in str(excinfo.value)
+    assert not leaked
+    assert len(mock_gnews.calls) == 0

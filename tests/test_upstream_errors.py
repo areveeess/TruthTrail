@@ -155,6 +155,23 @@ FAILURE_CASES = [
         _raises(requests.exceptions.SSLError), 503, "upstream_unreachable", "30",
         id="ssl-error",
     ),
+    # Reached, but the answer was unusable: a bad upstream answer (502), not an outage (D-07).
+    pytest.param(
+        _raises(requests.exceptions.ChunkedEncodingError), *BAD_502, id="chunked-encoding-error"
+    ),
+    pytest.param(
+        _raises(requests.exceptions.ContentDecodingError), *BAD_502, id="content-decoding-error"
+    ),
+    pytest.param(
+        _raises(requests.exceptions.TooManyRedirects), *BAD_502, id="too-many-redirects"
+    ),
+    pytest.param(_raises(requests.exceptions.InvalidURL), *BAD_502, id="invalid-url"),
+    pytest.param(_raises(requests.exceptions.InvalidHeader), *BAD_502, id="invalid-header"),
+    pytest.param(_raises(requests.exceptions.RequestException), *BAD_502, id="request-exception"),
+    pytest.param(
+        _raises(requests.exceptions.ProxyError), 503, "upstream_unreachable", "30",
+        id="proxy-error",
+    ),
     pytest.param(_body("<html>not json</html>"), *BAD_502, id="200-not-json"),
     pytest.param(_json([{"title": "a"}]), *BAD_502, id="200-json-list"),
     pytest.param(_json({}), *BAD_502, id="200-empty-object"),
