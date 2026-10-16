@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 01
 current_phase_name: Secure & Honest Foundation
-status: executing
-stopped_at: Completed 01-05-PLAN.md
-last_updated: "2026-10-16T10:27:53.108Z"
+status: verifying
+stopped_at: Completed 01-06-PLAN.md
+last_updated: "2026-10-16T10:35:19.419Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 01 execution started
-state_head: fbaab50fc6abbf5aaad1ab44551ee1d2689edc20
+state_head: 88281c5e915ba7ca72fd9d74309b6961bc1ce5b5
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 milestone_name: Lean MVP
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 
 Phase: 01 (Secure & Honest Foundation) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-16 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -62,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P03 | 6 min | 3 tasks | 5 files |
 | Phase 01 P04 | 3 min | 3 tasks | 6 files |
 | Phase 01 P05 | 9min | 3 tasks | 5 files |
+| Phase 01 P06 | 6 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Retry-After honoured only for all-digit values capped at 3600, else 30; request-time ConfigurationError answered 500 not_configured; SearchQuery trims, caps at 200 characters and rejects control characters
 - [Phase 01]: 01-05: article timestamp key is published_at and the response is the {results, meta} envelope (D-01 breaking change; no in-repo consumer)
 - [Phase 01]: 01-05: declared OpenAPI errors list only application/problem+json; demo mode ignores the validated query
+- [Phase 01]: 01-06: gitleaks range scan bounded with ^FLOOR in addition to the floor clamp so pre-floor history is never scanned (plan-check cap fix)
+- [Phase 01]: 01-06: copy guard skips OpenAPI identifier keys only for string leaves so a property named type cannot hide its description
 
 ### Pending Todos
 
@@ -107,6 +110,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T10:27:53.064Z
-Stopped at: Completed 01-05-PLAN.md
+Last session: 2026-10-16T10:35:19.368Z
+Stopped at: Completed 01-06-PLAN.md
 Resume file: None

@@ -9,12 +9,12 @@ Requirements for the first shippable portfolio release. Each maps to a roadmap p
 
 ### Foundation (FND)
 
-- [ ] **FND-01**: All credentials (news API key, Bluesky app password, database URL) are read from environment variables; `.env.example` documents them and no secret exists in the repository tree
+- [x] **FND-01**: All credentials (news API key, Bluesky app password, database URL) are read from environment variables; `.env.example` documents them and no secret exists in the repository tree
 - [ ] **FND-02**: When an upstream dependency (news API, Bluesky, database) fails, the API returns 502/503 with a machine-readable error body and never a fabricated 200 response
 - [x] **FND-03**: Every API response carries provenance fields (`synthetic`, `data_as_of`, `source_status`); fixture or demo data is served only when `DEMO_MODE=true` (default false) and is always flagged `synthetic: true`
 - [x] **FND-04**: Invalid or oversize input is rejected with 422, and every endpoint has a Pydantic response model visible in the OpenAPI schema
 - [x] **FND-05**: Characterization tests pin the current `/analyze` behaviour, known keyword defects included, before any refactor
-- [ ] **FND-06**: User-facing copy (README, API docs, UI) says "flag for human review"; CI fails if banned phrases ("detects the truth", a "FAKE" verdict badge) appear
+- [x] **FND-06**: User-facing copy (README, API docs, UI) says "flag for human review"; CI fails if banned phrases ("detects the truth", a "FAKE" verdict badge) appear
 
 ### Engineering (ENG)
 
@@ -103,12 +103,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FND-01 | Phase 1 | Pending |
+| FND-01 | Phase 1 | Complete |
 | FND-02 | Phase 1 | Pending |
 | FND-03 | Phase 1 | Complete |
 | FND-04 | Phase 1 | Complete |
 | FND-05 | Phase 1 | Complete |
-| FND-06 | Phase 1 | Pending |
+| FND-06 | Phase 1 | Complete |
 | ENG-01 | Phase 2 | Pending |
 | ENG-02 | Phase 2 | Pending |
 | ENG-03 | Phase 2 | Pending |
