@@ -102,8 +102,8 @@ def test_empty_result_is_not_fabricated(client, mock_gnews, gnews_url) -> None:
     ("upstream_status", "expected"),
     [
         pytest.param(401, 502, id="401"),
-        pytest.param(403, 502, marks=DEFECT, id="403"),
-        pytest.param(429, 503, marks=DEFECT, id="429"),
+        pytest.param(403, 502, id="403"),
+        pytest.param(429, 503, id="429"),
     ],
 )
 def test_upstream_status_is_honest(
@@ -122,10 +122,10 @@ def test_upstream_status_is_honest(
 @pytest.mark.parametrize(
     ("scenario", "expected"),
     [
-        pytest.param("server_error", 502, marks=DEFECT, id="http-500-html"),
-        pytest.param("not_json", 502, marks=DEFECT, id="200-not-json"),
-        pytest.param("null_title", 502, marks=DEFECT, id="null-title"),
-        pytest.param("timeout", 503, marks=DEFECT, id="connect-timeout"),
+        pytest.param("server_error", 502, id="http-500-html"),
+        pytest.param("not_json", 502, id="200-not-json"),
+        pytest.param("null_title", 502, id="null-title"),
+        pytest.param("timeout", 503, id="connect-timeout"),
     ],
 )
 def test_malformed_or_failed_upstream_is_honest(
