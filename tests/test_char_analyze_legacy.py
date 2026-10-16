@@ -152,7 +152,6 @@ def test_malformed_or_failed_upstream_is_honest(
     assert response.status_code == expected
 
 
-@DEFECT
 def test_empty_query_is_rejected(
     client, mock_gnews, gnews_url, gnews_payload, gnews_article
 ) -> None:

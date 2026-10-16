@@ -14,7 +14,11 @@ from http import HTTPStatus
 from typing import Any, Optional
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from config import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +90,61 @@ async def _upstream_error_handler(request: Request, exc: UpstreamError) -> JSONR
     return problem_response(exc.status, body, headers)
 
 
+async def _validation_error_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Render a 422 listing only where and why; the offending input is never echoed."""
+    errors = [
+        {"loc": list(err["loc"]), "msg": err["msg"], "type": err["type"]}
+        for err in exc.errors()
+    ]
+    body = problem_body(
+        422,
+        "Request validation failed.",
+        "invalid_request",
+        source_status="invalid_request",
+        errors=errors,
+    )
+    return problem_response(422, body)
+
+
+async def _http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
+    """Render router errors (404, 405, ...) and keep headers such as Allow."""
+    body = problem_body(
+        exc.status_code, str(exc.detail), "http_error", source_status="error"
+    )
+    return problem_response(exc.status_code, body, exc.headers)
+
+
+async def _configuration_error_handler(
+    request: Request, exc: ConfigurationError
+) -> JSONResponse:
+    """Render a missing configuration, reachable only when the lifespan was bypassed."""
+    logger.error("request rejected: service is not configured")
+    body = problem_body(
+        500,
+        "The service is not configured.",
+        "not_configured",
+        source_status="not_configured",
+    )
+    return problem_response(500, body)
+
+
+async def _unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Render any other failure with a generic detail; only the class name is logged."""
+    logger.error("unexpected error: %s", type(exc).__name__)
+    body = problem_body(
+        500, "Unexpected error.", "internal_error", source_status="error"
+    )
+    return problem_response(500, body)
+
+
 def register_problem_handlers(app: FastAPI) -> None:
     """Install every problem+json exception handler on the app."""
     app.add_exception_handler(UpstreamError, _upstream_error_handler)
+    app.add_exception_handler(RequestValidationError, _validation_error_handler)
+    app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
+    app.add_exception_handler(ConfigurationError, _configuration_error_handler)
+    app.add_exception_handler(Exception, _unexpected_error_handler)
