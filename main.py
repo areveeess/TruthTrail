@@ -20,9 +20,10 @@ async def lifespan(app: FastAPI):
     yield
 
 
-# 200 characters matches the provider's limit for q; the pattern rejects control
-# characters (also blocks log injection). Whitespace is trimmed before the checks.
-SearchQuery = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=r"^[^\x00-\x1f\x7f]+$")]
+# 200 characters matches the provider's limit for q; the pattern rejects C0 and C1 control
+# characters and the Unicode line/paragraph separators U+2028/U+2029 (also blocks log
+# injection). Whitespace is trimmed before the checks, so only embedded ones are seen.
+SearchQuery = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=r"^[^\x00-\x1f\x7f-\x9f\u2028\u2029]+$")]
 
 # Never a CWD-relative path: the fixture is found from this file wherever the app starts.
 FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "demo_analyze.json"
@@ -76,7 +77,7 @@ def analyze(
     query: Annotated[
         SearchQuery,
         Query(
-            description="Search keywords, 1-200 characters after trimming; control characters are rejected."
+            description="Search keywords, 1-200 characters after trimming; control and line-separator characters are rejected."
         ),
     ],
     settings: Annotated[Settings, Depends(get_settings)],

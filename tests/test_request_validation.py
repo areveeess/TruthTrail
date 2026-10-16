@@ -18,6 +18,11 @@ INVALID_QUERIES = [
     pytest.param("a\nb", id="newline"),
     pytest.param("a\tb", id="tab"),
     pytest.param("a\x7fb", id="del"),
+    pytest.param("a\x80b", id="c1-first"),
+    pytest.param("a\x85b", id="c1-nel"),
+    pytest.param("a\x9fb", id="c1-last"),
+    pytest.param("a\u2028b", id="line-separator"),
+    pytest.param("a\u2029b", id="paragraph-separator"),
 ]
 
 
@@ -69,6 +74,8 @@ def test_oversize_query_is_not_echoed(client, mock_gnews) -> None:
         pytest.param("a" * 200, "a" * 200, id="200-ascii"),
         pytest.param("é" * 200, "é" * 200, id="200-unicode"),
         pytest.param(" climate ", "climate", id="trimmed"),
+        pytest.param("caf\u00e9\u00a0bar", "caf\u00e9\u00a0bar", id="latin1-letters-and-nbsp"),
+        pytest.param("a\u2013b \u201cq\u201d", "a\u2013b \u201cq\u201d", id="typographic-punctuation"),
     ],
 )
 def test_query_boundaries_accepted(
