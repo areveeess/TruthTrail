@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from functools import lru_cache
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Query
@@ -22,6 +24,23 @@ async def lifespan(app: FastAPI):
 # characters (also blocks log injection). Whitespace is trimmed before the checks.
 SearchQuery = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=r"^[^\x00-\x1f\x7f]+$")]
 
+# Never a CWD-relative path: the fixture is found from this file wherever the app starts.
+FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "demo_analyze.json"
+
+
+@lru_cache(maxsize=1)
+def load_demo_fixture() -> AnalyzeResponse:
+    """Load and validate the committed synthetic demo fixture.
+
+    Refuses (RuntimeError, rendered as a generic 500) any fixture whose meta is not
+    labelled synthetic, so unlabelled demo data is never served.
+    """
+    fixture = AnalyzeResponse.model_validate_json(FIXTURE_PATH.read_text(encoding="utf-8"))
+    if fixture.meta.synthetic is not True or fixture.meta.source_status != "fixture":
+        raise RuntimeError("demo fixture is not labelled synthetic")
+    return fixture
+
+
 app = FastAPI(lifespan=lifespan)
 register_problem_handlers(app)
 
@@ -42,6 +61,10 @@ def analyze(
     ],
     settings: Annotated[Settings, Depends(get_settings)],
 ) -> AnalyzeResponse:
+    if settings.demo_mode:
+        # The fixture is the only demo source and is reachable only through this branch.
+        # The validated query is ignored in demo mode: the fixture never changes.
+        return load_demo_fixture()
     api_key = settings.gnews_api_key.get_secret_value() if settings.gnews_api_key is not None else ""
     articles = fetch_news(query, api_key)
     # Server receive time: when this service obtained the provider response.
