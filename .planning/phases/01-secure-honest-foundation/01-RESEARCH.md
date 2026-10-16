@@ -758,20 +758,25 @@ rx = re.compile(r'''(?i)(api[_-]?key|passw(or)?d|secret|token)\s*[:=]\s*["'][A-Z
 | A9 | The 20 Jul releases of `actions/checkout` v7.0.1 / `setup-python` v7.0.0 are still the latest majors and their commit SHAs are as printed on the release pages | Code Examples | A wrong SHA fails the workflow loudly at start; re-read the release pages at execution time |
 | A10 | Free-plan GNews 12-hour data delay and 100 requests/day limits are current | Pattern 4 | Wording in README/OpenAPI only |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Do error responses carry the provenance trio (FND-03 says "every API response")?**
+   - **RESOLVED:** yes - CONTEXT D-15 adds `synthetic`, `source_status` and `data_as_of: null` to RFC 9457 error bodies; implemented in plan 01-04.
    - What we know: D-06 defines the problem body as `type/title/status/detail/code/upstream`; ROADMAP criterion 3 says "Every API response carries `synthetic`, `data_as_of` and `source_status`".
    - What's unclear: whether errors are in scope of that sentence.
    - Recommendation: add `synthetic: false`, `source_status` (`upstream_error` / `invalid_request` / `error`) and `data_as_of: null` as RFC-9457 extension members (cheap, compatible). If the owner prefers pure problem bodies, restrict the FND-03 test to 2xx responses and say so in the plan.
 
 2. **GNews 400 for a user-supplied query syntax error** (unbalanced quotes/operators, `q` syntax error) is mapped to 502 `upstream_bad_response` (D-07 only lists 401/403/5xx/non-JSON/malformed). Recommendation: keep 502 in Phase 1; revisit when `/analyze` is retired or reduced in Phase 3.
+   - **RESOLVED:** kept as 502 `upstream_bad_response` (CONTEXT D-07/D-19); revisit when `/analyze` is retired or reduced in Phase 3.
 
 3. **Does the live `/analyze` keep `max=1`?** Current code requests one article (free plan allows up to 10). Recommendation: keep `max=1` (behaviour-preserving, minimises quota use); the envelope already supports a list.
+   - **RESOLVED:** keep `max=1`; implemented that way in plan 01-04 (envelope still supports a list).
 
 4. **Pin style for GitHub Actions:** SHA pins (recommended) vs `@v7` tags. SHA pins need a refresh routine; Phase 2 can add Dependabot for `github-actions`.
+   - **RESOLVED:** SHA pins with a trailing version comment (CONTEXT D-20); Dependabot for `github-actions` is a Phase 2 follow-up.
 
 5. **Phase 2 coupling:** `responses` only mocks `requests`; if Phase 2 swaps the adapter to `httpx`/`httpx2`, the single `mock_gnews` fixture is the only place to change - provided Phase 1 keeps all mocking behind it.
+   - **RESOLVED:** all mocking stays behind the single `mock_gnews` fixture in plan 01-01, so Phase 2 changes one place.
 
 ## Environment Availability
 
