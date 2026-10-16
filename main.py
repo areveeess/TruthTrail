@@ -42,8 +42,9 @@ def load_demo_fixture() -> AnalyzeResponse:
 
 
 APP_DESCRIPTION = (
-    "Prototype under reconstruction. Ranks recent news headlines with a keyword baseline "
-    "so a human reviewer can decide what to look at first. "
+    "Prototype under reconstruction. Labels the most recent matching news headline "
+    "(the provider is asked for one article per query) with a keyword-baseline flag. "
+    "Nothing is ranked or sorted. "
     "Every result is a flag for human review, not a verdict on whether a claim is true. "
     "Every response carries "
     "provenance (synthetic, data_as_of, source_status). Synthetic demo data is served "
@@ -69,7 +70,7 @@ app.add_middleware(
     "/analyze",
     response_model=AnalyzeResponse,
     responses=PROBLEM_RESPONSES,
-    summary="Keyword-baseline risk flags for recent headlines (flag for human review)",
+    summary="Keyword-baseline risk flag for the most recent matching headline (flag for human review)",
 )
 def analyze(
     query: Annotated[

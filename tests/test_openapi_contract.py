@@ -140,3 +140,22 @@ def test_openapi_copy_is_honest(spec) -> None:
     assert info["title"] == "TruthTrail API"
     assert "flag for human review" in info["description"]
     assert "flag for human review" in _analyze_get(spec)["summary"]
+
+
+def test_description_matches_what_the_endpoint_does(
+    spec, client, mock_gnews, gnews_url, gnews_article, gnews_payload
+) -> None:
+    """WR-04: the copy claims one article and no ranking; the request must really ask for one."""
+    mock_gnews.get(gnews_url, json=gnews_payload(gnews_article()))
+    client.get("/analyze", params={"query": "x"})
+    asked_for = dict(mock_gnews.calls[0].request.params)["max"]
+
+    description = spec["info"]["description"]
+    summary = _analyze_get(spec)["summary"]
+    assert asked_for == "1"
+    assert "one article" in description
+    assert "Nothing is ranked" in description
+    assert "most recent matching headline" in summary
+    # Any positive ranking claim would be false: nothing is sorted, and one article cannot be ordered.
+    positive_claims = [w for w in ("Ranks ", "ranks ", "Ranking ", "prioritised list") if w in description + summary]
+    assert positive_claims == []

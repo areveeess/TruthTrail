@@ -2,12 +2,13 @@
 
 **Status: prototype under reconstruction.**
 
-TruthTrail is being rebuilt into a misinformation early-warning tool. Its output is a flag for human review: it helps a reviewer decide what to look at first, and it never decides whether a claim is true. Nothing here is a verdict.
+TruthTrail is being rebuilt into a misinformation early-warning tool. Its output is a flag for human review: the aim is to help a reviewer decide what to look at first, and it never decides whether a claim is true. Nothing here is a verdict.
 
 ## What works today
 
-`GET /analyze?query=...` fetches recent headlines from the GNews API and labels each with a keyword baseline:
+`GET /analyze?query=...` fetches the most recent matching headline from the GNews API (the provider is asked for one article per query, `max=1`) and labels it with a keyword baseline:
 
+- At most one result is returned. Nothing is ranked or sorted, so there is no prioritised list yet.
 - `risk` is `High`, `Medium` or `Low`, and every result carries `risk_method: keyword_baseline`.
 - The baseline is substring keyword rules, not a trained model. It has known false positives, pinned by tests (for example "secure" matches "cure").
 - Live results contain the headline, source, publication time and risk label. They contain no spread data at all.

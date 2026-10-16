@@ -1,4 +1,4 @@
-"""GNews provider adapter: fetches headlines for a search query.
+"""GNews provider adapter: fetches the most recent matching headline (``max=1``) for a search query.
 
 Every upstream outcome is classified into a typed ``UpstreamError`` (see
 ``problems.py``) so the API answers 502/503 instead of a fabricated 200. No raised
