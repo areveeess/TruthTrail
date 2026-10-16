@@ -4,7 +4,8 @@
 # baseline file is used (D-09).
 #
 # Usage:   scripts/gitleaks_scan.sh <gitleaks-binary> <base_sha> <head_sha> <floor_sha>
-# Exit codes: 0 clean, 1 finding, 2 bad arguments or an unusable range.
+# Exit codes: 0 clean, 1 finding, 2 bad arguments, an unusable range, or an empty or
+# unlistable working tree (fail closed).
 #
 # Range rules, applied in this order (D-09, D-20: validate, then fail closed,
 # because gitleaks itself prints an error and exits 0 on an unresolvable --log-opts):
@@ -54,9 +55,20 @@ if ! git rev-parse --git-dir >/dev/null 2>&1; then
 fi
 
 # (a) Working tree: export exactly what git can see, so a local .venv/ or a
-# git-ignored .env is never scanned or printed.
+# git-ignored .env is never scanned or printed. Fails closed (D-20): the file list is
+# captured first so a failing `git ls-files` is seen (a process substitution would hide
+# it), and an empty list or an empty export is an error, never a clean scan.
 EXPORT=$(mktemp -d)
-trap 'rm -rf "$EXPORT"' EXIT
+LIST=$(mktemp)
+trap 'rm -rf "$EXPORT" "$LIST"' EXIT
+if ! git ls-files -z --cached --others --exclude-standard > "$LIST"; then
+  echo "gitleaks: could not list the working-tree files; refusing to report clean" >&2
+  exit 2
+fi
+if [ ! -s "$LIST" ]; then
+  echo "gitleaks: working-tree file list is empty; refusing to report clean" >&2
+  exit 2
+fi
 count=0
 while IFS= read -r -d '' path; do
   if [ -f "$path" ]; then
@@ -64,7 +76,11 @@ while IFS= read -r -d '' path; do
     cp -P -- "$path" "$EXPORT/$path"
     count=$((count + 1))
   fi
-done < <(git ls-files -z --cached --others --exclude-standard)
+done < "$LIST"
+if [ "$count" -eq 0 ]; then
+  echo "gitleaks: working-tree export is empty; refusing to report clean" >&2
+  exit 2
+fi
 echo "== (a) working tree (${count} git-visible files)"
 "$GL" dir "$EXPORT" --redact --no-banner --exit-code 1 -l warn
 

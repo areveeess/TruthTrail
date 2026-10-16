@@ -16,6 +16,8 @@
 #   deleted-key-from-floor  a value committed in one push and deleted in the next: a push scan from the
 #                           floor (what CI runs, so a cancelled earlier run cannot hide it) -> exit 1,
 #                           value absent from output; the tip's working tree is clean
+#   ls-files-failure        `git ls-files` fails inside the scan (a PATH shim)  -> exit 2, not a clean 0
+#   empty-working-tree      a commit with no files at all                       -> exit 2, not a clean 0
 #   zero-sentinel           GitHub's 40-zero "before" (new branch) is replaced by the floor: a clean
 #                           range -> exit 0 and the sentinel is announced; a leaky range -> exit 1
 # The planted values are generated at run time, kept in shell variables and throwaway
@@ -132,6 +134,19 @@ g rm -q deleted.py
 g commit -q -m "D2: value deleted"
 D2=$(git rev-parse HEAD)
 
+# Empty-tree scenario: orphan branch holding one empty commit (no files anywhere).
+g checkout -q --orphan empty-tree
+g rm -rfq .
+g commit -q --allow-empty -m "E: empty tree"
+E=$(git rev-parse HEAD)
+
+# PATH shim: every git call passes through except `ls-files`, which fails like a broken checkout would.
+SHIM="$WORK/shim"
+mkdir "$SHIM"
+REAL_GIT=$(command -v git)
+printf '#!/bin/bash\nif [ "${1:-}" = ls-files ]; then exit 128; fi\nexec "%s" "$@"\n' "$REAL_GIT" > "$SHIM/git"
+chmod +x "$SHIM/git"
+
 FAILED=0
 RC=0
 
@@ -196,6 +211,20 @@ run_scan "$R" "$D2" "$R"
 v=bad
 if [ "$RC" -eq 1 ] && ! leaked "$DELETED_SECRET"; then v=ok; fi
 report "deleted-key-from-floor" "$v"
+
+# (vi-b) fail closed (D-20): a failing `git ls-files` must not turn the working-tree scan into a silent no-op.
+g checkout -q clean-pr
+PATH="$SHIM:$PATH" run_scan "$R" "$C" "$R"
+v=bad
+if [ "$RC" -eq 2 ] && grep -q "could not list" "$OUT"; then v=ok; fi
+report "ls-files-failure" "$v"
+
+# (vi-c) fail closed: nothing to export is an error, never "clean".
+g checkout -q empty-tree
+run_scan "$E" "$E" "$E"
+v=bad
+if [ "$RC" -eq 2 ] && grep -q "file list is empty" "$OUT"; then v=ok; fi
+report "empty-working-tree" "$v"
 
 # (vii) the 40-zero sentinel is replaced by the floor: clean range passes, leaky range is caught.
 ZERO=0000000000000000000000000000000000000000
