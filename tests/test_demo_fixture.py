@@ -1,9 +1,17 @@
 """Tests for the committed synthetic demo fixture and its generator."""
 
+import importlib.util
 import json
+import random
 import re
+import subprocess
+import sys
+import uuid
 from datetime import datetime
 from pathlib import Path
+from types import ModuleType
+
+import pytest
 
 from models import AnalyzeResponse, DemoResult
 
@@ -83,3 +91,63 @@ def test_fixture_timestamps_are_utc_z() -> None:
     for result in load_fixture().results:
         for event in result.events:
             assert UTC_Z.match(event.timestamp)
+
+
+@pytest.fixture
+def generator() -> ModuleType:
+    """Load the generator script, skipping if the simulator is gone (Phase 2 deletes it)."""
+    pytest.importorskip("spread_simulator")
+    path = REPO_ROOT / "scripts" / "generate_demo_fixture.py"
+    spec = importlib.util.spec_from_file_location("generate_demo_fixture", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_check(*extra: str) -> subprocess.CompletedProcess:
+    """Run the generator CLI in check mode from the repository root."""
+    return subprocess.run(
+        [sys.executable, "scripts/generate_demo_fixture.py", "--check", *extra],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env={"PYTHONDONTWRITEBYTECODE": "1", "PATH": ""},
+    )
+
+
+def test_build_is_deterministic(generator: ModuleType) -> None:
+    assert generator.build_fixture() == generator.build_fixture()
+
+
+def test_build_restores_global_random_state(generator: ModuleType) -> None:
+    random.seed(12345)
+    before = random.getstate()
+    generator.build_fixture()
+    assert random.getstate() == before
+
+
+def test_build_restores_uuid4(generator: ModuleType) -> None:
+    original = uuid.uuid4
+    generator.build_fixture()
+    assert uuid.uuid4 is original
+
+
+def test_committed_fixture_matches_generator(generator: ModuleType) -> None:
+    completed = run_check()
+    assert completed.returncode == 0
+
+
+def test_check_detects_hand_edit(generator: ModuleType, tmp_path: Path) -> None:
+    copy = tmp_path / "demo_analyze.json"
+    text = FIXTURE_FILE.read_text(encoding="utf-8")
+    assert '"synthetic": true' in text
+    copy.write_text(text.replace('"synthetic": true', '"synthetic": false'), encoding="utf-8")
+    completed = run_check("--path", str(copy))
+    assert completed.returncode == 1
+    assert "stale" in completed.stderr
+
+
+def test_check_fails_on_missing_file(generator: ModuleType, tmp_path: Path) -> None:
+    completed = run_check("--path", str(tmp_path / "missing.json"))
+    assert completed.returncode == 1
