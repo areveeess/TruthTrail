@@ -23,7 +23,7 @@ created: "2026-10-11"
 | **Config file** | `pytest.ini` — Wave 0 creates it (none exists today); `xfail_strict = true` |
 | **Quick run command** | `python -m pytest -q -x tests/<affected file>.py` |
 | **Full suite command** | `python -m pytest -q` |
-| **Non-pytest gates** | `python scripts/copy_guard.py`; `bash scripts/gitleaks_scan.sh <gitleaks-bin> <base> HEAD <floor>` |
+| **Non-pytest gates** | `python scripts/copy_guard.py`; `bash scripts/gitleaks_scan.sh <gitleaks-bin> <base> HEAD <floor>`; `bash scripts/gitleaks_selftest.sh <gitleaks-bin>` |
 | **Estimated runtime** | ~20 seconds (no real network; all upstream calls mocked) |
 
 ---
@@ -60,8 +60,8 @@ Commands assume cwd = repo root and the dev virtualenv `.venv` created by 01-01 
 | 01-05-02 | 01-05 | 4 | FND-03 | T-01-24, T-01-27, T-01-28 | fixture served only under `DEMO_MODE=true` and only if labelled synthetic; empty -> honest 200; provenance on every response incl. errors (D-15) | integration | `.venv/bin/python -m pytest -q tests/test_provenance_demo.py` | ❌ W0 | ⬜ pending |
 | 01-05-03 | 01-05 | 4 | FND-04 | T-01-29 | OpenAPI: typed 2xx schema for every operation; 422/500/502/503 problem+json; real bodies match declared models; honest metadata copy | contract | `.venv/bin/python -m pytest -q tests/test_openapi_contract.py` | ❌ W0 | ⬜ pending |
 | 01-06-01 | 01-06 | 5 | FND-06 | T-01-34 | banned phrases fail, allow marker works, README contains the required phrase, OpenAPI strings clean | unit | `.venv/bin/python -m pytest -q tests/test_copy_guard.py` and `.venv/bin/python scripts/copy_guard.py` | ❌ W0 | ⬜ pending |
-| 01-06-02 | 01-06 | 5 | FND-01 | T-01-30, T-01-31, T-01-32, T-01-36, T-01-37 | gitleaks (sha256-pinned) clean on git-visible working tree and `a5dd825..HEAD`; only the 40-zero new-branch sentinel base falls back to the floor (exit 0 on the clean range); a non-sentinel unresolvable base (`not-a-commit`), a bogus floor behind the sentinel, a bogus head or a non-ancestor base each exit 2 | CI script, local | `bash scripts/install_gitleaks.sh "${TMPDIR:-/tmp}/truthtrail-gitleaks" && bash scripts/gitleaks_scan.sh "${TMPDIR:-/tmp}/truthtrail-gitleaks/gitleaks" a5dd8257e920923677c60e70611a6f36d87747b2 HEAD a5dd8257e920923677c60e70611a6f36d87747b2` | ❌ W0 | ⬜ pending |
-| 01-06-03 | 01-06 | 5 | FND-06, FND-01 | T-01-32, T-01-33, T-01-SC | CI runs copy-guard, gitleaks and tests jobs; SHA-pinned actions; `permissions: contents: read`; no secrets referenced; backstop and gitleaks scan clean before the commit (post-push Actions run is a non-gating follow-up, not in verify) | config contract | `.venv/bin/python -c "import yaml; d = yaml.safe_load(open('.github/workflows/ci.yml')); assert set(d['jobs']) == {'copy-guard', 'gitleaks', 'tests'}"` and `.venv/bin/python -m pytest -q` and the gitleaks scan command from 01-06-02 | ❌ W0 | ⬜ pending |
+| 01-06-02 | 01-06 | 5 | FND-01 | T-01-30, T-01-31, T-01-32, T-01-36, T-01-37 | gitleaks (sha256-pinned, downloaded or via a checksum-verified `GITLEAKS_TARBALL`) clean on git-visible working tree and `a5dd825..HEAD`; only the 40-zero new-branch sentinel base is replaced by the floor before validation; an unresolvable base (`not-a-commit`), head or floor (incl. a bogus floor behind the sentinel) exits 2; a valid base that is not an ancestor of the head (PR base branch advanced, force-push/rewind) is scanned from merge-base(base, head), and one sharing no history exits 2; a base at or behind the floor is raised to the floor; self-test in throwaway repos proves the advanced-PR-base (0 clean / 1 planted, redacted) and unrelated-history (2) cases | CI script, local | `bash scripts/install_gitleaks.sh "${TMPDIR:-/tmp}/truthtrail-gitleaks" && bash scripts/gitleaks_scan.sh "${TMPDIR:-/tmp}/truthtrail-gitleaks/gitleaks" a5dd8257e920923677c60e70611a6f36d87747b2 HEAD a5dd8257e920923677c60e70611a6f36d87747b2 && bash scripts/gitleaks_selftest.sh "${TMPDIR:-/tmp}/truthtrail-gitleaks/gitleaks"` | ❌ W0 | ⬜ pending |
+| 01-06-03 | 01-06 | 5 | FND-06, FND-01 | T-01-32, T-01-33, T-01-38 | CI runs copy-guard, gitleaks and tests jobs; SHA-pinned actions; `permissions: contents: read`; no secrets referenced; backstop and gitleaks scan clean before the commit (post-push Actions run is a non-gating follow-up, not in verify) | config contract | `.venv/bin/python -c "import yaml; d = yaml.safe_load(open('.github/workflows/ci.yml')); assert set(d['jobs']) == {'copy-guard', 'gitleaks', 'tests'}"` and `.venv/bin/python -m pytest -q` and the gitleaks scan command from 01-06-02 | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -75,7 +75,7 @@ Commands assume cwd = repo root and the dev virtualenv `.venv` created by 01-01 
 - [ ] `tests/test_settings.py`, `tests/test_no_hardcoded_credentials.py` (regex backstop for the entropy gap in gitleaks) (01-02)
 - [ ] `tests/test_demo_fixture.py`, `tests/test_response_models.py` (01-03)
 - [ ] `tests/test_upstream_errors.py`, `tests/test_request_validation.py` (01-04); `tests/test_provenance_demo.py`, `tests/test_openapi_contract.py` (01-05); `tests/test_copy_guard.py` (01-06) — the seeded name `test_validation_openapi.py` was split into `test_request_validation.py` and `test_openapi_contract.py`
-- [ ] `scripts/generate_demo_fixture.py` (01-03), `scripts/copy_guard.py`, `scripts/install_gitleaks.sh`, `scripts/gitleaks_scan.sh` (01-06)
+- [ ] `scripts/generate_demo_fixture.py` (01-03), `scripts/copy_guard.py`, `scripts/install_gitleaks.sh`, `scripts/gitleaks_scan.sh`, `scripts/gitleaks_selftest.sh` (01-06)
 - [ ] Framework install: `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt` (01-01-01)
 
 ---
