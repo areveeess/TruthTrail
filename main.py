@@ -10,7 +10,7 @@ from pydantic import StringConstraints
 from config import Settings, get_settings
 from gnews_fetcher import fetch_news
 from models import AnalyzeResponse, LiveResult, Meta
-from problems import register_problem_handlers
+from problems import PROBLEM_RESPONSES, register_problem_handlers
 from risk_analyzer import analyze_risk
 
 
@@ -41,7 +41,21 @@ def load_demo_fixture() -> AnalyzeResponse:
     return fixture
 
 
-app = FastAPI(lifespan=lifespan)
+APP_DESCRIPTION = (
+    "Prototype under reconstruction. Ranks recent news headlines with a keyword baseline "
+    "so a human reviewer can decide what to look at first. "
+    "Every result is a flag for human review, not a verdict on whether a claim is true. "
+    "Every response carries "
+    "provenance (synthetic, data_as_of, source_status). Synthetic demo data is served "
+    "only when DEMO_MODE=true and is labelled synthetic: true."
+)
+
+app = FastAPI(
+    title="TruthTrail API",
+    version="0.1.0",
+    description=APP_DESCRIPTION,
+    lifespan=lifespan,
+)
 register_problem_handlers(app)
 
 app.add_middleware(
@@ -51,7 +65,12 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-@app.get("/analyze", response_model=AnalyzeResponse)
+@app.get(
+    "/analyze",
+    response_model=AnalyzeResponse,
+    responses=PROBLEM_RESPONSES,
+    summary="Keyword-baseline risk flags for recent headlines (flag for human review)",
+)
 def analyze(
     query: Annotated[
         SearchQuery,

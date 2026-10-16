@@ -10,6 +10,7 @@ message into a body or a log line.
 """
 
 import logging
+from collections.abc import Callable
 from http import HTTPStatus
 from typing import Any, Optional
 
@@ -19,10 +20,41 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from config import ConfigurationError
+from models import Problem
 
 logger = logging.getLogger(__name__)
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
+
+
+def _problem_declaration(description: str, **extra: Any) -> dict:
+    """OpenAPI response entry: the Problem model plus explicit problem+json content.
+
+    Keep both: a bare ``content`` entry without the model renders an empty schema.
+    """
+    return {
+        "model": Problem,
+        "description": description,
+        "content": {PROBLEM_MEDIA_TYPE: {"schema": {"$ref": "#/components/schemas/Problem"}}},
+        **extra,
+    }
+
+
+# Error responses a route declares so /openapi.json matches what the handlers return.
+PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
+    422: _problem_declaration("Invalid request (problem details)."),
+    500: _problem_declaration("Configuration or unexpected error (problem details)."),
+    502: _problem_declaration("The news provider answered badly (problem details)."),
+    503: _problem_declaration(
+        "The news provider is unreachable or rate limiting; see Retry-After (problem details).",
+        headers={
+            "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {"type": "integer"},
+            }
+        },
+    ),
+}
 
 
 class UpstreamError(Exception):
@@ -141,8 +173,30 @@ async def _unexpected_error_handler(request: Request, exc: Exception) -> JSONRes
     return problem_response(500, body)
 
 
+def _problem_only_openapi(app: FastAPI) -> Callable[[], dict[str, Any]]:
+    """Wrap ``app.openapi`` so declared errors list only application/problem+json.
+
+    FastAPI also adds an application/json entry whenever a response declares a
+    ``model``; the handlers never answer that media type, so it is removed.
+    """
+    build = app.openapi
+
+    def openapi() -> dict[str, Any]:
+        schema = build()
+        for item in schema.get("paths", {}).values():
+            for operation in item.values():
+                for code, response in operation.get("responses", {}).items():
+                    content = response.get("content", {})
+                    if code in {"422", "500", "502", "503"} and PROBLEM_MEDIA_TYPE in content:
+                        content.pop("application/json", None)
+        return schema
+
+    return openapi
+
+
 def register_problem_handlers(app: FastAPI) -> None:
     """Install every problem+json exception handler on the app."""
+    app.openapi = _problem_only_openapi(app)  # type: ignore[method-assign]
     app.add_exception_handler(UpstreamError, _upstream_error_handler)
     app.add_exception_handler(RequestValidationError, _validation_error_handler)
     app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
