@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import Settings, get_settings
 from gnews_fetcher import fetch_news
+from problems import register_problem_handlers
 from risk_analyzer import analyze_risk
 from spread_simulator import create_root_event, simulate_spread
 
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+register_problem_handlers(app)
 
 app.add_middleware(
     CORSMiddleware,

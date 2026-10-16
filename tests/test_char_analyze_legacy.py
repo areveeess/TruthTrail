@@ -101,7 +101,7 @@ def test_empty_result_is_not_fabricated(client, mock_gnews, gnews_url) -> None:
 @pytest.mark.parametrize(
     ("upstream_status", "expected"),
     [
-        pytest.param(401, 502, marks=DEFECT, id="401"),
+        pytest.param(401, 502, id="401"),
         pytest.param(403, 502, marks=DEFECT, id="403"),
         pytest.param(429, 503, marks=DEFECT, id="429"),
     ],
