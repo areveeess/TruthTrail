@@ -110,7 +110,9 @@ class Finding(NamedTuple):
 
 def scan_text(text: str, source: str) -> list[Finding]:
     """Return a Finding for every banned phrase in ``text`` that is not allow-marked."""
-    lines = text.splitlines()
+    # Split on "\n" only: line numbers below come from text.count("\n"), and str.splitlines() would also
+    # split on U+2028, U+0085, \x0c, \x1c-\x1e and lone \r, shifting the window so a distant marker is accepted.
+    lines = text.split("\n")
     findings: list[Finding] = []
     for rule, pattern in BANNED:
         for match in pattern.finditer(text):

@@ -110,6 +110,26 @@ def test_allow_marker_covers_the_new_rules(guard, banned):
     assert guard.scan_text(banned, "a.md") != []
 
 
+@pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\u0085", "\x0c", "\x1c", "\x1d", "\x1e", "\r"])
+def test_exotic_line_separators_do_not_shift_the_marker_window(guard, separator):
+    """IN-01: the window uses the same line separator as the line number."""
+    marker = "<!-- copy-guard: allow -->"
+    banned = "It detects the truth."
+    # The marker is two lines above the match: too far, whatever precedes it.
+    far = guard.scan_text(f"x{separator}y\n{marker}\nfiller\n{banned}", "a.md")
+    assert [(f.rule, f.line) for f in far] == [("truth-claim", 4)]
+    # A marker on the line immediately before is still honoured.
+    assert guard.scan_text(f"x{separator}y\n{marker}\n{banned}", "a.md") == []
+    assert guard.scan_text(f"x{separator}y\n{banned} {marker}", "a.md") == []
+
+
+def test_allow_marker_works_with_crlf_text(guard):
+    marker = "<!-- copy-guard: allow -->"
+    assert guard.scan_text(f"{marker}\r\nIt detects the truth.\r\n", "a.md") == []
+    far = guard.scan_text(f"{marker}\r\nfiller\r\nIt detects the truth.\r\n", "a.md")
+    assert [f.line for f in far] == [3]
+
+
 def test_readme_requires_flag_phrase(guard, tmp_path):
     (tmp_path / "README.md").write_text("# Demo\n\nNothing about review here.\n", encoding="utf-8")
     findings = guard.scan_repo(tmp_path, include_openapi=False)
