@@ -4,16 +4,16 @@ milestone: v1.0
 current_phase: 01
 current_phase_name: Secure & Honest Foundation
 status: executing
-stopped_at: Completed 01-04-PLAN.md
-last_updated: "2026-10-16T10:22:08.799Z"
+stopped_at: Completed 01-05-PLAN.md
+last_updated: "2026-10-16T10:27:53.108Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 01 execution started
-state_head: 8cbf5c9afdeee5d49ae0f87d5181d11dcb533f5c
+state_head: fbaab50fc6abbf5aaad1ab44551ee1d2689edc20
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
 milestone_name: Lean MVP
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 01 (Secure & Honest Foundation) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-10-16 — Phase 01 execution started
 
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P02 | 5 min | 3 tasks | 8 files |
 | Phase 01 P03 | 6 min | 3 tasks | 5 files |
 | Phase 01 P04 | 3 min | 3 tasks | 6 files |
+| Phase 01 P05 | 9min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-03: Demo fixture timestamps re-based by _monotone_utc (child = parent's new time + original offset), simulator untouched
 - [Phase 01]: 403 maps to 502 upstream_forbidden (distinct code, detail names credentials, subscription or daily quota); an empty result is valid only when totalArticles is 0 (D-19)
 - [Phase 01]: Retry-After honoured only for all-digit values capped at 3600, else 30; request-time ConfigurationError answered 500 not_configured; SearchQuery trims, caps at 200 characters and rejects control characters
+- [Phase 01]: 01-05: article timestamp key is published_at and the response is the {results, meta} envelope (D-01 breaking change; no in-repo consumer)
+- [Phase 01]: 01-05: declared OpenAPI errors list only application/problem+json; demo mode ignores the validated query
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T10:22:04.326Z
-Stopped at: Completed 01-04-PLAN.md
+Last session: 2026-10-16T10:27:53.064Z
+Stopped at: Completed 01-05-PLAN.md
 Resume file: None
