@@ -41,7 +41,12 @@ if [ -n "$INVOKER_TOP" ]; then
 fi
 
 g() { git -c user.name=selftest -c user.email=selftest@example.invalid -c commit.gpgsign=false "$@"; }
-gen_secret() { python3 -c "import secrets; print(secrets.token_urlsafe(24))"; }
+# AWS-shaped value built at run time from 16 distinct symbols: the aws-access-token rule has no
+# stopword list and its entropy floor is always cleared, so detection is deterministic
+# (a random urlsafe token is sometimes dropped by the generic-api-key stopwords or entropy gate).
+gen_secret() {
+  python3 -c "import secrets; print('AK' + 'IA' + ''.join(secrets.SystemRandom().sample('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', 16)))"
+}
 
 SECRET=$(gen_secret)
 OLD_SECRET=$(gen_secret)
