@@ -9,10 +9,12 @@ move touches this one file.
 
 import random
 from collections.abc import Callable, Iterator
-from typing import Any
+from typing import Any, Optional
 
 import pytest
 import responses
+
+from config import Settings, get_settings
 
 FAKE_KEY = "FAKE_TEST_KEY"
 GNEWS_URL = "https://gnews.io/api/v4/search"
@@ -27,11 +29,18 @@ ENV_NAMES = (
 
 @pytest.fixture(autouse=True)
 def network_guard(monkeypatch: pytest.MonkeyPatch) -> Iterator[responses.RequestsMock]:
-    """Block every unregistered outbound request and scrub secret-bearing env vars."""
+    """Block every unregistered outbound request and scrub secret-bearing env vars.
+
+    A developer's local .env is disabled and the cached settings are cleared
+    before and after each test, so no real value can leak in or persist.
+    """
     for name in ENV_NAMES:
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    get_settings.cache_clear()
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rs:
         yield rs
+    get_settings.cache_clear()
 
 
 @pytest.fixture
@@ -42,16 +51,26 @@ def mock_gnews(network_guard: responses.RequestsMock) -> responses.RequestsMock:
 
 @pytest.fixture
 def client_factory(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Any]:
-    """Return a callable that builds a TestClient around the real app."""
+    """Return a callable that builds a TestClient around the real app.
 
-    def make(*, raise_server_exceptions: bool = False) -> Any:
-        import gnews_fetcher
+    Settings are driven through the environment. Using the returned client as a
+    context manager (``with client_factory(...):``) runs the app lifespan.
+    """
+
+    def make(
+        *,
+        gnews_api_key: Optional[str] = FAKE_KEY,
+        demo_mode: Optional[str] = None,
+        raise_server_exceptions: bool = False,
+    ) -> Any:
         import main
         from fastapi.testclient import TestClient
 
-        # The current fetcher reads this module constant at call time, so no
-        # request built during tests can carry the rotated key.
-        monkeypatch.setattr(gnews_fetcher, "GNEWS_API_KEY", FAKE_KEY)
+        if gnews_api_key is not None:
+            monkeypatch.setenv("GNEWS_API_KEY", gnews_api_key)
+        if demo_mode is not None:
+            monkeypatch.setenv("DEMO_MODE", demo_mode)
+        get_settings.cache_clear()
         return TestClient(main.app, raise_server_exceptions=raise_server_exceptions)
 
     return make

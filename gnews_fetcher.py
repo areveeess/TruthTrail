@@ -1,20 +1,24 @@
+"""GNews provider adapter: fetches headlines for a search query."""
+
 import requests
 
-GNEWS_API_KEY = "1e33d9b872423f303ae8689e1da8fc39"
+from config import ConfigurationError
 
-def fetch_news(query):
-    if not "1e33d9b872423f303ae8689e1da8fc39" or "PUT_" in "1e33d9b872423f303ae8689e1da8fc39":
-        return []
+GNEWS_URL = "https://gnews.io/api/v4/search"
 
-    url = "https://gnews.io/api/v4/search"
-    params = {
-        "q": query,
-        "lang": "en",
-        "max": 1,
-        "apikey": GNEWS_API_KEY
-    }
 
-    r = requests.get(url, params=params)
+def fetch_news(query: str, api_key: str) -> list[dict]:
+    """Return ``[{"title", "source", "publishedAt"}]`` for the query.
+
+    The credential travels only in the ``X-Api-Key`` request header, never in the
+    URL, because ``requests`` error text embeds the full URL. A blank key raises
+    ConfigurationError.
+    """
+    if not api_key or not api_key.strip():
+        raise ConfigurationError("GNEWS_API_KEY is not configured.")
+
+    params = {"q": query, "lang": "en", "max": 1}
+    r = requests.get(GNEWS_URL, params=params, headers={"X-Api-Key": api_key})
     data = r.json()
 
     articles = []
@@ -24,5 +28,4 @@ def fetch_news(query):
             "source": a["source"]["name"],
             "publishedAt": a["publishedAt"]
         })
-
     return articles
