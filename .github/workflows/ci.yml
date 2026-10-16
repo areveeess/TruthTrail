@@ -46,7 +46,6 @@ jobs:
       - name: Scan working tree and commit range
         env:
           EVENT_NAME: ${{ github.event_name }}
-          PUSH_BEFORE: ${{ github.event.before }}
           PUSH_AFTER: ${{ github.sha }}
           PR_BASE: ${{ github.event.pull_request.base.sha }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -55,7 +54,11 @@ jobs:
             BASE="$PR_BASE"
             HEAD_SHA="$PR_HEAD"
           else
-            BASE="$PUSH_BEFORE"
+            # Push: always scan the whole post-floor history (floor..sha), never just before..sha. With
+            # cancel-in-progress a superseded run is cancelled, and a cancelled run is not a failure; scanning
+            # only before..sha would then leave the cancelled push's commits permanently unscanned, so a key
+            # committed in one push and deleted in the next would pass (D-09). Each run is cumulative instead.
+            BASE="$RANGE_FLOOR"
             HEAD_SHA="$PUSH_AFTER"
           fi
           bash scripts/gitleaks_scan.sh "$RUNNER_TEMP/gitleaks/gitleaks" "$BASE" "$HEAD_SHA" "$RANGE_FLOOR"

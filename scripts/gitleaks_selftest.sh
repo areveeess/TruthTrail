@@ -13,6 +13,11 @@
 #   merged-prefloor-branch  an old branch (base X) that merged post-floor history (head Z) while the
 #                           pre-floor history holds a planted value          -> exit 0 (floor bound);
 #                           a control scan of X..Z without the bound         -> exit 1 (the scenario is real)
+#   deleted-key-from-floor  a value committed in one push and deleted in the next: a push scan from the
+#                           floor (what CI runs, so a cancelled earlier run cannot hide it) -> exit 1,
+#                           value absent from output; the tip's working tree is clean
+#   zero-sentinel           GitHub's 40-zero "before" (new branch) is replaced by the floor: a clean
+#                           range -> exit 0 and the sentinel is announced; a leaky range -> exit 1
 # The planted values are generated at run time, kept in shell variables and throwaway
 # files, and never echoed.
 set -euo pipefail
@@ -50,6 +55,7 @@ gen_secret() {
 
 SECRET=$(gen_secret)
 OLD_SECRET=$(gen_secret)
+DELETED_SECRET=$(gen_secret)
 OUT="$WORK/out.txt"
 REPO="$WORK/repo"
 mkdir "$REPO"
@@ -116,6 +122,16 @@ X=$(git rev-parse HEAD)
 g merge -q --no-edit rot-main
 Z=$(git rev-parse HEAD)
 
+# Cumulative-push scenario: deleted-leak = R + D1 (planted value) + D2 (value deleted).
+g checkout -q "$R"
+g checkout -q -b deleted-leak
+printf 'api_key = "%s"\n' "$DELETED_SECRET" > deleted.py
+g add deleted.py
+g commit -q -m "D1: planted value"
+g rm -q deleted.py
+g commit -q -m "D2: value deleted"
+D2=$(git rev-parse HEAD)
+
 FAILED=0
 RC=0
 
@@ -173,6 +189,26 @@ RC=$CONTROL_RC
 v=bad
 if [ "$CONTROL_RC" -eq 1 ] && ! leaked "$OLD_SECRET"; then v=ok; fi
 report "merged-prefloor-control" "$v"
+
+# (vi) a value committed and deleted: the push scan runs from the floor, so it is found even though the tip is clean.
+g checkout -q deleted-leak
+run_scan "$R" "$D2" "$R"
+v=bad
+if [ "$RC" -eq 1 ] && ! leaked "$DELETED_SECRET"; then v=ok; fi
+report "deleted-key-from-floor" "$v"
+
+# (vii) the 40-zero sentinel is replaced by the floor: clean range passes, leaky range is caught.
+ZERO=0000000000000000000000000000000000000000
+g checkout -q clean-pr
+run_scan "$ZERO" "$C" "$R"
+v=bad
+if [ "$RC" -eq 0 ] && grep -q "new-branch sentinel" "$OUT"; then v=ok; fi
+report "zero-sentinel-clean" "$v"
+
+run_scan "$ZERO" "$L" "$R"
+v=bad
+if [ "$RC" -eq 1 ] && grep -q "new-branch sentinel" "$OUT" && ! leaked "$SECRET"; then v=ok; fi
+report "zero-sentinel-leak" "$v"
 
 if [ "$FAILED" -eq 0 ]; then
   echo "selftest: all scenarios passed"
