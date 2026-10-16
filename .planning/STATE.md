@@ -4,16 +4,16 @@ milestone: v1.0
 current_phase: 01
 current_phase_name: Secure & Honest Foundation
 status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-10-16T10:16:47.373Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-10-16T10:22:08.799Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 01 execution started
-state_head: e8f6cbcc4d1b05106df9e36363bdc2b5df19eeb4
+state_head: 8cbf5c9afdeee5d49ae0f87d5181d11dcb533f5c
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
 milestone_name: Lean MVP
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 01 (Secure & Honest Foundation) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-10-16 — Phase 01 execution started
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 4 min | 3 tasks | 8 files |
 | Phase 01 P02 | 5 min | 3 tasks | 8 files |
 | Phase 01 P03 | 6 min | 3 tasks | 5 files |
+| Phase 01 P04 | 3 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-02: settings are lazy and cached (get_settings); ConfigurationError is built from loc and msg only and raised from None; app lifespan calls get_settings for fail-fast (uvicorn exit 3)
 - [Phase 01]: 01-03: Problem.source_status is a plain str (error states are outside Meta's Literal) and Problem.data_as_of is typed None
 - [Phase 01]: 01-03: Demo fixture timestamps re-based by _monotone_utc (child = parent's new time + original offset), simulator untouched
+- [Phase 01]: 403 maps to 502 upstream_forbidden (distinct code, detail names credentials, subscription or daily quota); an empty result is valid only when totalArticles is 0 (D-19)
+- [Phase 01]: Retry-After honoured only for all-digit values capped at 3600, else 30; request-time ConfigurationError answered 500 not_configured; SearchQuery trims, caps at 200 characters and rejects control characters
 
 ### Pending Todos
 
@@ -101,6 +104,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T10:16:47.333Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-10-16T10:22:04.326Z
+Stopped at: Completed 01-04-PLAN.md
 Resume file: None
