@@ -1,0 +1,189 @@
+{
+  "results": [
+    {
+      "headline": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+      "source": "Example News (synthetic demo)",
+      "published_at": "2026-10-01T09:00:00Z",
+      "risk": "High",
+      "risk_method": "keyword_baseline",
+      "events": [
+        {
+          "event_id": "5687a1ec-7ee9-48c9-98bb-a0827de9fc02",
+          "platform": "news",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": null,
+          "user_id": "Example News (synthetic demo)",
+          "timestamp": "2026-10-01T09:00:00Z",
+          "user_influence": 90
+        },
+        {
+          "event_id": "5baf92bc-0a3d-4563-8e0a-98d947682be3",
+          "platform": "twitter",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "5687a1ec-7ee9-48c9-98bb-a0827de9fc02",
+          "user_id": "tw2",
+          "timestamp": "2026-10-01T09:27:00Z",
+          "user_influence": 60
+        },
+        {
+          "event_id": "03bf9e4a-b07e-4af4-8984-e23c7add2199",
+          "platform": "twitter",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "5baf92bc-0a3d-4563-8e0a-98d947682be3",
+          "user_id": "tw2",
+          "timestamp": "2026-10-01T09:53:00Z",
+          "user_influence": 60
+        },
+        {
+          "event_id": "abd9a46e-c302-40aa-9d89-e68cb494d8fb",
+          "platform": "twitter",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "03bf9e4a-b07e-4af4-8984-e23c7add2199",
+          "user_id": "tw2",
+          "timestamp": "2026-10-01T10:01:00Z",
+          "user_influence": 60
+        },
+        {
+          "event_id": "a8a6d912-f2e3-4948-b798-a1885864967e",
+          "platform": "twitter",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "abd9a46e-c302-40aa-9d89-e68cb494d8fb",
+          "user_id": "tw1",
+          "timestamp": "2026-10-01T10:28:00Z",
+          "user_influence": 90
+        },
+        {
+          "event_id": "20d199ee-dbff-4656-87d9-67de9ad86949",
+          "platform": "twitter",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "a8a6d912-f2e3-4948-b798-a1885864967e",
+          "user_id": "tw2",
+          "timestamp": "2026-10-01T10:35:00Z",
+          "user_influence": 60
+        },
+        {
+          "event_id": "00ee2fc7-06bc-46aa-a9d4-d95078d9d9b6",
+          "platform": "twitter",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "20d199ee-dbff-4656-87d9-67de9ad86949",
+          "user_id": "tw3",
+          "timestamp": "2026-10-01T10:40:00Z",
+          "user_influence": 40
+        },
+        {
+          "event_id": "fcf9bc1c-e3bf-41ec-b972-06523aee7a49",
+          "platform": "facebook",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "5687a1ec-7ee9-48c9-98bb-a0827de9fc02",
+          "user_id": "fb2",
+          "timestamp": "2026-10-01T09:18:00Z",
+          "user_influence": 50
+        },
+        {
+          "event_id": "5eeaacfd-31e9-40c5-a682-51c93df7de2f",
+          "platform": "facebook",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "fcf9bc1c-e3bf-41ec-b972-06523aee7a49",
+          "user_id": "fb1",
+          "timestamp": "2026-10-01T09:53:00Z",
+          "user_influence": 70
+        },
+        {
+          "event_id": "7464dd6d-b650-4163-8ff2-ec56e5884ecc",
+          "platform": "facebook",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "5eeaacfd-31e9-40c5-a682-51c93df7de2f",
+          "user_id": "fb1",
+          "timestamp": "2026-10-01T09:58:00Z",
+          "user_influence": 70
+        },
+        {
+          "event_id": "23fac9e7-0423-427d-8aeb-15a39c27cc92",
+          "platform": "facebook",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "7464dd6d-b650-4163-8ff2-ec56e5884ecc",
+          "user_id": "fb1",
+          "timestamp": "2026-10-01T10:18:00Z",
+          "user_influence": 70
+        },
+        {
+          "event_id": "b15691e1-6afa-402c-bcb5-535941e9da34",
+          "platform": "facebook",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "23fac9e7-0423-427d-8aeb-15a39c27cc92",
+          "user_id": "fb1",
+          "timestamp": "2026-10-01T10:35:00Z",
+          "user_influence": 70
+        },
+        {
+          "event_id": "33a8d061-bbbb-4595-85a9-84b159b5a391",
+          "platform": "facebook",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "b15691e1-6afa-402c-bcb5-535941e9da34",
+          "user_id": "fb2",
+          "timestamp": "2026-10-01T11:31:00Z",
+          "user_influence": 50
+        },
+        {
+          "event_id": "5b35b8de-d977-4d9e-b8c2-e9144def10a5",
+          "platform": "reddit",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "5687a1ec-7ee9-48c9-98bb-a0827de9fc02",
+          "user_id": "rd2",
+          "timestamp": "2026-10-01T09:44:00Z",
+          "user_influence": 35
+        },
+        {
+          "event_id": "299e9e04-b02a-4cb7-9b84-34d0824dd1b1",
+          "platform": "reddit",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "5b35b8de-d977-4d9e-b8c2-e9144def10a5",
+          "user_id": "rd2",
+          "timestamp": "2026-10-01T09:50:00Z",
+          "user_influence": 35
+        },
+        {
+          "event_id": "fc8adbb2-118f-4c5d-b363-e767b0713ec1",
+          "platform": "reddit",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "299e9e04-b02a-4cb7-9b84-34d0824dd1b1",
+          "user_id": "rd1",
+          "timestamp": "2026-10-01T10:11:00Z",
+          "user_influence": 55
+        },
+        {
+          "event_id": "57518d59-578d-4ab7-b929-377bdecb054c",
+          "platform": "reddit",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "fc8adbb2-118f-4c5d-b363-e767b0713ec1",
+          "user_id": "rd2",
+          "timestamp": "2026-10-01T11:00:00Z",
+          "user_influence": 35
+        },
+        {
+          "event_id": "7699c363-51fd-4f35-89da-3bc95d79014c",
+          "platform": "reddit",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "57518d59-578d-4ab7-b929-377bdecb054c",
+          "user_id": "rd2",
+          "timestamp": "2026-10-01T11:54:00Z",
+          "user_influence": 35
+        },
+        {
+          "event_id": "b8f1749c-cee0-4e53-b898-9390dfe1f886",
+          "platform": "reddit",
+          "content_id": "Example claim: miracle cure circulates in Example Town (synthetic demo)",
+          "parent_event_id": "7699c363-51fd-4f35-89da-3bc95d79014c",
+          "user_id": "rd1",
+          "timestamp": "2026-10-01T12:18:00Z",
+          "user_influence": 55
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "synthetic": true,
+    "data_as_of": "2026-10-11T12:00:00Z",
+    "source_status": "fixture"
+  }
+}
