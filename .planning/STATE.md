@@ -4,16 +4,16 @@ milestone: v1.0
 current_phase: 01
 current_phase_name: Secure & Honest Foundation
 status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-10-16T10:05:57.258Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-10-16T10:12:26.980Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 01 execution started
-state_head: c41c09439eeb724cfa731d41faf5dae322a3575c
+state_head: e04761458aacf8319c81e9b022bbadc8eeae947d
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 1
+  completed_plans: 2
 milestone_name: Lean MVP
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 01 (Secure & Honest Foundation) — EXECUTING
-Plan: 2 of 6
+Plan: 3 of 6
 Status: Ready to execute
 Last activity: 2026-10-16 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 4 min | 3 tasks | 8 files |
+| Phase 01 P02 | 5 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Recent decisions affecting current work:
 - [Phase 01]: Test client backend is httpx 0.28.1 (D-18); filterwarnings=error with one message-regex ignore for Starlette's httpx deprecation
 - [Phase 01]: Runtime pins committed last in 01-01 after 48 per-test outcomes matched under unpinned and pinned runtimes
 - [Phase 01]: client_factory monkeypatches the fetcher key constant to FAKE_TEST_KEY; plan 01-02 removes that line with the constant
+- [Phase 01]: 01-02: rewrote gnews_fetcher.py without reading it so the rotated key never entered tool output; key stays in history at 1fedcd2 (D-11)
+- [Phase 01]: 01-02: settings are lazy and cached (get_settings); ConfigurationError is built from loc and msg only and raised from None; app lifespan calls get_settings for fail-fast (uvicorn exit 3)
 
 ### Pending Todos
 
@@ -95,6 +98,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T10:05:57.218Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-10-16T10:12:26.934Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
