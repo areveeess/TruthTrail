@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, Query
@@ -6,9 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import StringConstraints
 from config import Settings, get_settings
 from gnews_fetcher import fetch_news
+from models import AnalyzeResponse, LiveResult, Meta
 from problems import register_problem_handlers
 from risk_analyzer import analyze_risk
-from spread_simulator import create_root_event, simulate_spread
 
 
 @asynccontextmanager
@@ -31,7 +32,7 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-@app.get("/analyze")
+@app.get("/analyze", response_model=AnalyzeResponse)
 def analyze(
     query: Annotated[
         SearchQuery,
@@ -40,29 +41,25 @@ def analyze(
         ),
     ],
     settings: Annotated[Settings, Depends(get_settings)],
-):
+) -> AnalyzeResponse:
     api_key = settings.gnews_api_key.get_secret_value() if settings.gnews_api_key is not None else ""
     articles = fetch_news(query, api_key)
+    # Server receive time: when this service obtained the provider response.
+    data_as_of = datetime.now(timezone.utc).replace(microsecond=0)
 
-    # 🔥 FALLBACK so frontend NEVER breaks
-    if not articles:
-        articles = [{
-            "title": query,
-            "source": "unknown",
-            "publishedAt": "2025-01-01T10:00:00Z"
-        }]
-
-    results = []
-
-    for article in articles:
-        risk = analyze_risk(article["title"])
-        root = create_root_event(article)
-        events = simulate_spread(root, risk)
-
-        results.append({
-            "headline": article["title"],
-            "risk": risk,
-            "events": events
-        })
-
-    return results
+    results = [
+        LiveResult(
+            headline=article["title"],
+            source=article["source"],
+            published_at=article["publishedAt"],
+            risk=analyze_risk(article["title"]),
+            risk_method="keyword_baseline",
+        )
+        for article in articles
+    ]
+    meta = Meta(
+        synthetic=False,
+        data_as_of=data_as_of,
+        source_status="ok" if results else "empty",
+    )
+    return AnalyzeResponse(results=results, meta=meta)
