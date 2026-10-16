@@ -37,11 +37,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. An empty, oversize or malformed query is rejected with 422, and `/openapi.json` shows a Pydantic response model for every endpoint (checked by a test that walks the schema).
   5. Characterization tests pinning current `/analyze` behaviour, known keyword defects included (e.g. "secure" matching "cure", "studies" matching "dies", "couple" matching "coup"), are committed before any behavioural change, and a CI check fails when README, API docs or UI copy contains banned phrases such as "detects the truth" or a "FAKE" verdict badge; the README now says "flag for human review".
 
-**Plans**: 6 plans
+**Plans**: 1/6 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 01-01-PLAN.md — Wave 1: test harness, autouse network guard and characterization tests (defects as strict xfails), before any behavioural change (FND-05)
+- [x] 01-01-PLAN.md — Wave 1: test harness, autouse network guard and characterization tests (defects as strict xfails), before any behavioural change (FND-05)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Wave 2: env-only settings, fail-fast startup, key out of source and into the X-Api-Key header, .env.example/.gitignore, credential backstop (FND-01)
@@ -152,7 +152,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 (Phases 3 and 4 may 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Secure & Honest Foundation | 0/TBD | Not started | - |
+| 1. Secure & Honest Foundation | 1/6 | In Progress | - |
 | 2. Engineering Baseline | 0/TBD | Not started | - |
 | 3. Real Propagation Data | 0/TBD | Not started | - |
 | 4. Baseline Detection & Evaluation | 0/TBD | Not started | - |

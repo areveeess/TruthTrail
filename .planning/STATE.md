@@ -4,16 +4,16 @@ milestone: v1.0
 current_phase: 01
 current_phase_name: Secure & Honest Foundation
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-10-16T10:00:57.407Z"
+stopped_at: Completed 01-01-PLAN.md
+last_updated: "2026-10-16T10:05:57.258Z"
 last_activity: 2026-10-16
 last_activity_desc: Phase 01 execution started
-state_head: 2757f456cb8bc78aab7f22d5f3e797e87a5d7b7a
+state_head: c41c09439eeb724cfa731d41faf5dae322a3575c
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 6
-  completed_plans: 0
+  completed_plans: 1
 milestone_name: Lean MVP
 ---
 
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 01 (Secure & Honest Foundation) — EXECUTING
-Plan: 1 of 6
-Status: Executing Phase 01
+Plan: 2 of 6
+Status: Ready to execute
 Last activity: 2026-10-16 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -53,6 +53,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: n/a
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 4 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,9 @@ Recent decisions affecting current work:
 - [Roadmap]: Phases 3 and 4 both depend only on Phase 2 and may run in parallel; Phase 5 needs both
 - [Roadmap]: Bluesky Jetstream v2 is the propagation source (confirm in the Phase 3 spike); primary UX is a triage feed plus a "score this text" playground, not query-driven `/analyze`
 - [Roadmap]: v2 "Showcase" items stay deferred with no phases; git-history purge of the rotated GNews key is not in any phase
+- [Phase 01]: Test client backend is httpx 0.28.1 (D-18); filterwarnings=error with one message-regex ignore for Starlette's httpx deprecation
+- [Phase 01]: Runtime pins committed last in 01-01 after 48 per-test outcomes matched under unpinned and pinned runtimes
+- [Phase 01]: client_factory monkeypatches the fetcher key constant to FAKE_TEST_KEY; plan 01-02 removes that line with the constant
 
 ### Pending Todos
 
@@ -87,6 +95,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-11T12:08:17.755Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-secure-honest-foundation/01-CONTEXT.md
+Last session: 2026-10-16T10:05:57.218Z
+Stopped at: Completed 01-01-PLAN.md
+Resume file: None
