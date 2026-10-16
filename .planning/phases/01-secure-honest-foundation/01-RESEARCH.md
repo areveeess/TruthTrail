@@ -649,8 +649,8 @@ GL="$1"; BASE="$2"; HEAD_SHA="$3"; FLOOR="$4"
 ZERO=0000000000000000000000000000000000000000
 echo "== (a) working tree"
 "$GL" dir . --redact --no-banner --exit-code 1 -l warn
-if [ "$BASE" = "$ZERO" ] || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-  echo "base unusable (new branch / force-push); falling back to floor ${FLOOR}"; BASE="$FLOOR"
+if [ "$BASE" = "$ZERO" ]; then   # ONLY the all-zero new-branch sentinel may fall back (D-20: fail closed otherwise)
+  echo "new branch (all-zero base); falling back to floor ${FLOOR}"; BASE="$FLOOR"
 fi
 git cat-file -e "${BASE}^{commit}"     || { echo "ERROR: range base not found"; exit 2; }
 git cat-file -e "${HEAD_SHA}^{commit}" || { echo "ERROR: range head not found"; exit 2; }
@@ -659,7 +659,7 @@ echo "== (b) commit range ${BASE:0:7}..${HEAD_SHA:0:7} ($(git rev-list --count "
 "$GL" git . --redact --no-banner --exit-code 1 -l warn --log-opts="${BASE}..${HEAD_SHA}"
 echo "gitleaks: clean"
 ```
-Observed: removal-only range -> clean (exit 0); range including the add -> exit 1; zero/bogus `before` -> falls back to the floor; missing floor -> exit 2. **Floor value:** `a5dd8257e920923677c60e70611a6f36d87747b2` (current HEAD; every commit after it is scanned on new-branch/force-push pushes; `1fedcd2` is an ancestor of it and therefore never scanned, satisfying D-09 without a baseline file). If the owner ever purges history (deferred, D-11) the floor SHA vanishes and the script exits 2 loudly - update the constant then. The binary must live outside the workspace (`$RUNNER_TEMP`), otherwise `dir .` scans the downloaded archive.
+Observed: removal-only range -> clean (exit 0); range including the add -> exit 1; all-zero `before` -> falls back to the floor; any other unresolvable base (e.g. `not-a-commit`), a missing floor, a bad head or a non-ancestor base -> exit 2 (fail closed, D-20; plan 01-06 T2 supersedes the earlier any-unknown-base fallback). **Floor value:** `a5dd8257e920923677c60e70611a6f36d87747b2` (current HEAD; every commit after it is scanned on new-branch/force-push pushes; `1fedcd2` is an ancestor of it and therefore never scanned, satisfying D-09 without a baseline file). If the owner ever purges history (deferred, D-11) the floor SHA vanishes and the script exits 2 loudly - update the constant then. The binary must live outside the workspace (`$RUNNER_TEMP`), otherwise `dir .` scans the downloaded archive.
 
 ### Workflow (script-level pieces executed; the YAML itself was not run - no runner access, Assumption A6)
 ```yaml
