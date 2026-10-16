@@ -198,6 +198,8 @@ The accepted warning said the floor clamp only applies when the base is an ances
 
 **Total deviations:** 3 auto-fixed/added, 1 wording note. No architectural change.
 
+**Post-plan orchestrator fix (commit after aca5205):** the selftest's planted value was a random urlsafe token that gitleaks' generic-api-key rule sometimes drops (stopwords/entropy), so the selftest failed intermittently (3 of 11 runs observed). It now builds an AWS-shaped value from 16 distinct symbols at run time; 40 consecutive runs passed.
+
 ## Issues Encountered
 
 None. The release download was reachable through the proxy on the first attempt, so no checksum pin was loosened and no tarball route was needed.
