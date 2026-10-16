@@ -1,0 +1,73 @@
+# Phase 1 CI: copy guard, secret scan and tests on every push and pull request.
+# Phase 2 (ENG-04) extends this workflow with ruff, mypy, pip-audit and uv; it does not replace it (D-14).
+# Third-party actions are pinned by full commit SHA with the version in a trailing comment (D-20).
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  copy-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python scripts/copy_guard.py
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    env:
+      # Commit after the key rotation; history up to and including it is never scanned (D-09).
+      RANGE_FLOOR: "a5dd8257e920923677c60e70611a6f36d87747b2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # The pinned release is checksum-verified inside the script; the binary lives outside the workspace.
+      - name: Install gitleaks (pinned, checksum verified)
+        run: bash scripts/install_gitleaks.sh "$RUNNER_TEMP/gitleaks"
+      # PR_BASE is passed unchanged: scripts/gitleaks_scan.sh scans from merge-base(base, head) when the
+      # base branch has advanced past the fork point (and from the floor when that merge-base lies at or
+      # behind it), so a stale PR stays scannable, while an unresolvable base still fails the job with
+      # exit 2 (D-09, D-20).
+      - name: Scan working tree and commit range
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="$PR_BASE"
+            HEAD_SHA="$PR_HEAD"
+          else
+            BASE="$PUSH_BEFORE"
+            HEAD_SHA="$PUSH_AFTER"
+          fi
+          bash scripts/gitleaks_scan.sh "$RUNNER_TEMP/gitleaks/gitleaks" "$BASE" "$HEAD_SHA" "$RANGE_FLOOR"
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
