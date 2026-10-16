@@ -44,6 +44,16 @@ DEMO_ARTICLES = [
         "source": "Example News (synthetic demo)",
         "publishedAt": "2026-10-01T09:00:00Z",
     },
+    {
+        "title": "Example Town library extends weekend opening hours (synthetic demo)",
+        "source": "Example News (synthetic demo)",
+        "publishedAt": "2026-10-02T14:30:00Z",
+    },
+    {
+        "title": "Example Town council statement on road repairs (synthetic demo)",
+        "source": "Example News (synthetic demo)",
+        "publishedAt": "2026-10-03T08:15:00Z",
+    },
 ]
 
 

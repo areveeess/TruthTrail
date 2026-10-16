@@ -179,6 +179,204 @@
           "user_influence": 55
         }
       ]
+    },
+    {
+      "headline": "Example Town library extends weekend opening hours (synthetic demo)",
+      "source": "Example News (synthetic demo)",
+      "published_at": "2026-10-02T14:30:00Z",
+      "risk": "Medium",
+      "risk_method": "keyword_baseline",
+      "events": [
+        {
+          "event_id": "8a5a8a3f-1e0f-4b53-8c33-da4838047c10",
+          "platform": "news",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": null,
+          "user_id": "Example News (synthetic demo)",
+          "timestamp": "2026-10-02T14:30:00Z",
+          "user_influence": 90
+        },
+        {
+          "event_id": "804aa8e5-9ef0-49dc-87f8-ac2d3aec2acb",
+          "platform": "twitter",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "8a5a8a3f-1e0f-4b53-8c33-da4838047c10",
+          "user_id": "tw1",
+          "timestamp": "2026-10-02T15:29:00Z",
+          "user_influence": 90
+        },
+        {
+          "event_id": "f2fd30a0-dec8-4406-a703-e2973ea134d1",
+          "platform": "twitter",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "804aa8e5-9ef0-49dc-87f8-ac2d3aec2acb",
+          "user_id": "tw2",
+          "timestamp": "2026-10-02T16:06:00Z",
+          "user_influence": 60
+        },
+        {
+          "event_id": "f16b7c06-dbec-40a6-9a64-eec42de3bd75",
+          "platform": "twitter",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "f2fd30a0-dec8-4406-a703-e2973ea134d1",
+          "user_id": "tw1",
+          "timestamp": "2026-10-02T16:55:00Z",
+          "user_influence": 90
+        },
+        {
+          "event_id": "43d2def2-48bb-4deb-ba70-5ffa4d4f7369",
+          "platform": "facebook",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "8a5a8a3f-1e0f-4b53-8c33-da4838047c10",
+          "user_id": "fb1",
+          "timestamp": "2026-10-02T15:19:00Z",
+          "user_influence": 70
+        },
+        {
+          "event_id": "fd0a9f5b-cd32-4f35-92d5-4a9c8f5ea62f",
+          "platform": "facebook",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "43d2def2-48bb-4deb-ba70-5ffa4d4f7369",
+          "user_id": "fb2",
+          "timestamp": "2026-10-02T15:28:00Z",
+          "user_influence": 50
+        },
+        {
+          "event_id": "bf75acc2-660c-4995-a441-69e03761ff64",
+          "platform": "facebook",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "fd0a9f5b-cd32-4f35-92d5-4a9c8f5ea62f",
+          "user_id": "fb2",
+          "timestamp": "2026-10-02T15:54:00Z",
+          "user_influence": 50
+        },
+        {
+          "event_id": "ba304724-9759-4ef3-ab7e-c6d85de5534c",
+          "platform": "reddit",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "8a5a8a3f-1e0f-4b53-8c33-da4838047c10",
+          "user_id": "rd2",
+          "timestamp": "2026-10-02T14:58:00Z",
+          "user_influence": 35
+        },
+        {
+          "event_id": "12cb50e5-19fa-4600-831f-8ca2e7b76117",
+          "platform": "reddit",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "ba304724-9759-4ef3-ab7e-c6d85de5534c",
+          "user_id": "rd2",
+          "timestamp": "2026-10-02T15:23:00Z",
+          "user_influence": 35
+        },
+        {
+          "event_id": "130a826c-7a56-4a24-98e9-73089eaa10dd",
+          "platform": "reddit",
+          "content_id": "Example Town library extends weekend opening hours (synthetic demo)",
+          "parent_event_id": "12cb50e5-19fa-4600-831f-8ca2e7b76117",
+          "user_id": "rd2",
+          "timestamp": "2026-10-02T16:23:00Z",
+          "user_influence": 35
+        }
+      ]
+    },
+    {
+      "headline": "Example Town council statement on road repairs (synthetic demo)",
+      "source": "Example News (synthetic demo)",
+      "published_at": "2026-10-03T08:15:00Z",
+      "risk": "Low",
+      "risk_method": "keyword_baseline",
+      "events": [
+        {
+          "event_id": "e22b6285-ef03-49f4-8408-f4f93581aeaf",
+          "platform": "news",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": null,
+          "user_id": "Example News (synthetic demo)",
+          "timestamp": "2026-10-03T08:15:00Z",
+          "user_influence": 90
+        },
+        {
+          "event_id": "83d4f988-857d-43bf-9071-b1499d3f6bef",
+          "platform": "twitter",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "e22b6285-ef03-49f4-8408-f4f93581aeaf",
+          "user_id": "tw1",
+          "timestamp": "2026-10-03T09:11:00Z",
+          "user_influence": 90
+        },
+        {
+          "event_id": "c3323cfc-bcfe-42ab-a237-3dc7ee0a9b36",
+          "platform": "twitter",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "83d4f988-857d-43bf-9071-b1499d3f6bef",
+          "user_id": "tw3",
+          "timestamp": "2026-10-03T09:30:00Z",
+          "user_influence": 40
+        },
+        {
+          "event_id": "b0b0b009-4542-4c05-8fac-b448b8b24ba5",
+          "platform": "twitter",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "c3323cfc-bcfe-42ab-a237-3dc7ee0a9b36",
+          "user_id": "tw1",
+          "timestamp": "2026-10-03T09:42:00Z",
+          "user_influence": 90
+        },
+        {
+          "event_id": "74b50f0c-9a6a-4529-ae4a-48adf9c02fb9",
+          "platform": "facebook",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "e22b6285-ef03-49f4-8408-f4f93581aeaf",
+          "user_id": "fb1",
+          "timestamp": "2026-10-03T08:21:00Z",
+          "user_influence": 70
+        },
+        {
+          "event_id": "d667fe11-bd93-4804-aa65-54921845f640",
+          "platform": "facebook",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "74b50f0c-9a6a-4529-ae4a-48adf9c02fb9",
+          "user_id": "fb1",
+          "timestamp": "2026-10-03T08:51:00Z",
+          "user_influence": 70
+        },
+        {
+          "event_id": "569559b7-9ddf-4989-a84d-60999b496043",
+          "platform": "facebook",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "d667fe11-bd93-4804-aa65-54921845f640",
+          "user_id": "fb1",
+          "timestamp": "2026-10-03T09:18:00Z",
+          "user_influence": 70
+        },
+        {
+          "event_id": "323c7f7d-c439-4c16-9de5-bf24e961174e",
+          "platform": "reddit",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "e22b6285-ef03-49f4-8408-f4f93581aeaf",
+          "user_id": "rd2",
+          "timestamp": "2026-10-03T08:38:00Z",
+          "user_influence": 35
+        },
+        {
+          "event_id": "dc1ffd9f-a637-4616-9c61-8ee38875579c",
+          "platform": "reddit",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "323c7f7d-c439-4c16-9de5-bf24e961174e",
+          "user_id": "rd2",
+          "timestamp": "2026-10-03T09:18:00Z",
+          "user_influence": 35
+        },
+        {
+          "event_id": "7dd0b5a4-daba-487f-a262-410c01f454be",
+          "platform": "reddit",
+          "content_id": "Example Town council statement on road repairs (synthetic demo)",
+          "parent_event_id": "dc1ffd9f-a637-4616-9c61-8ee38875579c",
+          "user_id": "rd2",
+          "timestamp": "2026-10-03T10:14:00Z",
+          "user_influence": 35
+        }
+      ]
     }
   ],
   "meta": {
