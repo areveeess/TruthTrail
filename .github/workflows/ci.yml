@@ -17,8 +17,11 @@ concurrency:
 jobs:
   copy-guard:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
@@ -29,6 +32,7 @@ jobs:
 
   gitleaks:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
       # Commit after the key rotation; history up to and including it is never scanned (D-09).
       RANGE_FLOOR: "a5dd8257e920923677c60e70611a6f36d87747b2"
@@ -36,9 +40,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       # The pinned release is checksum-verified inside the script; the binary lives outside the workspace.
       - name: Install gitleaks (pinned, checksum verified)
         run: bash scripts/install_gitleaks.sh "$RUNNER_TEMP/gitleaks"
+      # Proves the range rules, the fail-closed paths and redacted detection in throwaway repositories, so a
+      # regression in scripts/gitleaks_scan.sh turns CI red instead of silently weakening the scan.
+      - name: Selftest the scan script
+        run: bash scripts/gitleaks_selftest.sh "$RUNNER_TEMP/gitleaks/gitleaks"
       # PR_BASE is passed unchanged: scripts/gitleaks_scan.sh scans from merge-base(base, head) when the
       # base branch has advanced past the fork point (and from the floor when that merge-base lies at or
       # behind it), so a stale PR stays scannable, while an unresolvable base still fails the job with
@@ -65,8 +74,11 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.13"
