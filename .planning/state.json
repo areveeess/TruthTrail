@@ -1,0 +1,43 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": "v1.0",
+  "phases": [
+    {
+      "number": "1",
+      "name": "Secure & Honest Foundation",
+      "status": "pending"
+    },
+    {
+      "number": "2",
+      "name": "Engineering Baseline",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Real Propagation Data",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Baseline Detection & Evaluation",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Dashboard",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Deploy & Package v1",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd:progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 1 of 6 · executing"
+  },
+  "updated_at": "2026-10-16T09:56:49.095Z"
+}

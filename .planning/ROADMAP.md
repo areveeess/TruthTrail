@@ -26,6 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Secure & Honest Foundation
+
 **Goal**: The existing service stops misleading its users: no secrets in the repo, upstream failures surface as honest errors, any demo data is explicitly labelled, input is validated, and the prototype's current behaviour is pinned by tests before anything is refactored.
 **Depends on**: Nothing (first phase)
 **Requirements**: FND-01, FND-02, FND-03, FND-04, FND-05, FND-06
@@ -35,17 +36,28 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Every API response carries `synthetic`, `data_as_of` and `source_status`; with `DEMO_MODE` unset or false no fixture data can be served, and with `DEMO_MODE=true` any fixture response is flagged `synthetic: true` (both proven by tests).
   4. An empty, oversize or malformed query is rejected with 422, and `/openapi.json` shows a Pydantic response model for every endpoint (checked by a test that walks the schema).
   5. Characterization tests pinning current `/analyze` behaviour, known keyword defects included (e.g. "secure" matching "cure", "studies" matching "dies", "couple" matching "coup"), are committed before any behavioural change, and a CI check fails when README, API docs or UI copy contains banned phrases such as "detects the truth" or a "FAKE" verdict badge; the README now says "flag for human review".
+
 **Plans**: 6 plans
 
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — Wave 1: test harness, autouse network guard and characterization tests (defects as strict xfails), before any behavioural change (FND-05)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Wave 2: env-only settings, fail-fast startup, key out of source and into the X-Api-Key header, .env.example/.gitignore, credential backstop (FND-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — Wave 3 (after 01-02, parallel with 01-04): envelope/Problem models and the deterministic, labelled synthetic demo fixture (FND-03)
 - [ ] 01-04-PLAN.md — Wave 3 (parallel with 01-03): typed GNews errors, RFC 9457 problem+json for every error, 401 -> 502 test, 422 input validation (FND-02, FND-04)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-05-PLAN.md — Wave 4: provenance envelope on /analyze, DEMO_MODE-only fixture, provenance on every response, typed OpenAPI contract (FND-03, FND-04)
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-06-PLAN.md — Wave 5: honest README, copy guard, pinned fail-closed gitleaks scan, minimal CI workflow (FND-06, FND-01)
 
 ### Phase 2: Engineering Baseline
+
 **Goal**: The service is a properly packaged, tested, containerised and CI-guarded FastAPI app, with a versioned `/v1` router mount point that Phases 3 and 4 can extend independently, so data and ML code land on a solid base.
 **Depends on**: Phase 1
 **Requirements**: ENG-01, ENG-02, ENG-03, ENG-04, ENG-05, ENG-06
@@ -55,9 +67,11 @@ Plans:
   3. A pytest + hypothesis suite covers the API and reports coverage; property tests prove, for arbitrary generated cascades, that events come back ordered by `observed_at` and that a child is never earlier than its parent.
   4. `docker build` succeeds and the running container answers `/health` with 200, while `/ready` returns 503 whenever a registered dependency check fails (proved by a test with an injected failing check); the database check lands in Phase 3 and the model-artifact check in Phase 4.
   5. CORS accepts only configured origins, requests over the rate limit receive 429, repeated reads are served from a TTL cache, and outbound HTTP uses timeouts and bounded retries (each proven by a test, including a mocked slow or failing upstream that stops after the retry bound).
+
 **Plans**: TBD
 
 ### Phase 3: Real Propagation Data
+
 **Goal**: Real Bluesky propagation data is collected within stated bounds, stored in Postgres with honest edge semantics, and served by a typed read API; there are no fabricated users or events on the live path.
 **Depends on**: Phase 2
 **Requirements**: DATA-01, DATA-02, DATA-03, DATA-04, DATA-05, DATA-06
@@ -67,9 +81,11 @@ Plans:
   3. The bounded Jetstream collector stores events only for tracked roots; replaying the same input twice leaves identical row counts (idempotent upserts keyed on the `at://` URI), a run killed mid-stream resumes from its checkpoint without loss or duplicates (checkpoint after commit), and a delete event removes the content.
   4. The enrich step resolves parents and rolls up cascades, orphans are an explicit stored state with parents never invented, and a property test shows that shuffled arrival order of the same events yields identical state.
   5. The `/v1` API serves cascade trees, timelines and stats from the database with "observed since" and orphan counts, honours the Phase 1 provenance and error contract (a database outage returns 503 with the machine-readable body and `/ready` reports not ready), and news context for a bounded query set is refreshed by a job into the database; a test asserts that no request handler can trigger a news-API call.
+
 **Plans**: TBD
 
 ### Phase 4: Baseline Detection & Evaluation
+
 **Goal**: A calibrated text classifier exists whose measured performance against the old keyword rules is reproducible from scripts, and it is served from a hash-verified artifact that never silently falls back to keyword rules.
 **Depends on**: Phase 2 (independent of Phase 3; the two may run in parallel)
 **Requirements**: ML-01, ML-02, ML-03, ML-04, ML-05, ML-06
@@ -79,9 +95,11 @@ Plans:
   3. The TF-IDF + logistic-regression model is calibrated on the held-out calibration split only and returns a score band, an abstain state and top-token explanations for each prediction; its test-set metrics are reported against both baselines with confidence intervals, whichever way the comparison falls.
   4. Integrity checks run and are recorded in `metrics.json`: source-only and shuffled-label canaries (the shuffled-label canary scores near chance), entity slices, a name-swap test and an out-of-domain probe set with its own false-flag row; the README results table is generated from `metrics.json` and a check fails if it drifts.
   5. The model artifact is hash-verified against `manifest.json` (sha256, calibration, thresholds, metrics) at startup, a tampered or missing artifact makes `/ready` return 503 (completing the model check deferred from Phase 2), `POST /v1/score` returns a band and abstain flag for pasted text, and a model card documents training data, metrics, limits and the LIAR/PHEME-to-Bluesky domain shift.
+
 **Plans**: TBD
 
 ### Phase 5: Dashboard
+
 **Goal**: A reviewer can open the dashboard, scan a triage feed of tracked cascades, drill into one, and score pasted text, with every failure and staleness state handled honestly.
 **Depends on**: Phase 3, Phase 4
 **Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05
@@ -91,10 +109,12 @@ Plans:
   3. The risk badge always shows a calibrated band or the abstain state, never a bare verdict or bare percentage, and the "score this text" playground submits to `/v1/score` and displays the band or abstain state with top tokens, using "flag for human review" wording.
   4. Loading, error, empty, stale-data and "server waking up" states each render (reproducible by stopping the API, emptying the database or delaying the first response), data the API marks `synthetic: true` is visibly labelled, and the layout is responsive, keyboard-navigable from feed to detail, and passes an automated contrast and accessibility check.
   5. The frontend uses a client generated from the OpenAPI schema, and CI fails when the generated file is out of date (demonstrated by changing a response field without regenerating).
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 6: Deploy & Package v1
+
 **Goal**: A stranger can run TruthTrail from a clean clone or open the live demo, and can read an honest README that states what the results do and do not show.
 **Depends on**: Phase 5
 **Requirements**: OPS-01, OPS-02, DOC-01, DOC-02
@@ -103,6 +123,7 @@ Plans:
   2. A live demo URL serves the dashboard from a single image with managed Postgres, seeded with real cascades; a scheduled collector job refreshes the data within its bounds, a periodic health check reports when the demo is down, and the Bluesky terms were re-read and the result recorded in the Phase 3 decision document before the URL was made public.
   3. The README contains the problem statement, architecture diagram, setup instructions, demo GIF or video, live link, and a results table that matches `metrics.json`.
   4. A limitations and ethics section covers domain shift, the repost-star caveat, no truth adjudication, pseudonymized accounts and honoured deletions, and the copy guard from Phase 1 passes on the final README.
+
 **Plans**: TBD
 
 ## Cross-Phase Notes

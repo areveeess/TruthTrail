@@ -98,3 +98,14 @@ Commands assume cwd = repo root and the dev virtualenv `.venv` created by 01-01 
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
+
+---
+
+## Known Issues Accepted at the Plan-Check Cap
+
+The plan-checker ran three rounds (5 issues -> 2 warnings -> 1 warning, 0 blockers) and the revision cap was reached; the remaining warning was force-proceeded because the checker states it does not block execution.
+
+- **01-06 Task 2, range scan (WARNING, dependency_correctness):** the floor clamp only applies when the base is an ancestor of the floor. A base that is neither an ancestor nor a descendant of the floor (e.g. a feature branch whose previous tip predates the rotated-key commit `1fedcd2` and which later merged `main`) leaves `BASE..HEAD` containing `1fedcd2`, giving a red build on the inert, already-rotated key. **Executor: fix while implementing 01-06 T2** by also bounding the range by the floor, i.e. `--log-opts="${BASE}..${HEAD_SHA} ^${FLOOR}"`, and add a `scripts/gitleaks_selftest.sh` case for a merged pre-floor branch (expect exit 0). Pre-rotation history must never be scanned (D-09).
+- **Advisory (INFO):** a few `fails_when` lines still use exact totals (e.g. "3 passed" in 01-01 T1, "2 passed" in 01-04 T1 and 01-05 T1); prefer named-test collection if a test is added.
+- **Advisory (INFO):** 01-03 and 01-04 (both Wave 3) each bootstrap `.venv` if absent; create it once in 01-02 or serialise to avoid a race.
+- **Advisory (INFO):** pin `pyyaml` explicitly in `requirements-dev.txt` (a transitive of `responses`, imported by the 01-06 T3 check) or narrow the T-01-38 wording.
