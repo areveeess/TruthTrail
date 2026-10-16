@@ -330,3 +330,27 @@ def test_adapter_exceptions_are_raised_from_none(
     assert exc.__suppress_context__ is True
     assert not key_leaked
     assert not host_leaked
+
+
+@pytest.mark.parametrize("redirect_status", [301, 302, 307, 308])
+def test_redirect_is_not_followed_and_maps_to_502(
+    client, mock_gnews, gnews_url, gnews_article, gnews_payload, fake_key, redirect_status
+) -> None:
+    """WR-01 / D-16: X-Api-Key must never be re-sent to a redirect target."""
+    target = "https://elsewhere.example.org/api"
+    mock_gnews.get(
+        gnews_url, status=redirect_status, headers={"Location": target}, body=""
+    )
+    mock_gnews.get(target, json=gnews_payload(gnews_article()))
+
+    response = client.get("/analyze", params={"query": "x"})
+
+    body = response.json()
+    urls_called = [call.request.url for call in mock_gnews.calls]
+    redirect_followed = any(url.startswith(target) for url in urls_called)
+    key_in_body = fake_key in response.text
+    assert response.status_code == 502
+    assert body["code"] == "upstream_bad_response"
+    assert len(urls_called) == 1
+    assert not redirect_followed
+    assert not key_in_body

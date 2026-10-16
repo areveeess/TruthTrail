@@ -84,7 +84,8 @@ def fetch_news(query: str, api_key: str) -> list[dict]:
     """Return ``[{"title", "source", "publishedAt"}]`` for the query.
 
     The credential travels only in the ``X-Api-Key`` request header, never in the
-    URL, because ``requests`` error text embeds the full URL. A blank key raises
+    URL, because ``requests`` error text embeds the full URL. Redirects are never
+    followed, so the key cannot be forwarded to another host. A blank key raises
     ConfigurationError; any upstream failure or malformed payload raises
     UpstreamError. ``publishedAt`` is returned as a UTC ``...Z`` string.
     """
@@ -97,6 +98,9 @@ def fetch_news(query: str, api_key: str) -> list[dict]:
             params={"q": query, "lang": "en", "max": 1},
             headers={"X-Api-Key": api_key},
             timeout=TIMEOUT,
+            # A redirect would re-send X-Api-Key to wherever it points (requests strips only
+            # Authorization), so a 3xx is treated as a bad upstream answer instead (D-16).
+            allow_redirects=False,
         )
     except requests.exceptions.Timeout:
         # Before RequestException: ConnectTimeout is both a Timeout and a ConnectionError.
