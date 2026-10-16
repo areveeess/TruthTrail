@@ -55,6 +55,25 @@ BANNED: list[tuple[str, re.Pattern[str]]] = [
         ),
     ),
     ("misinformation-detector", re.compile(r"\b(mis|dis)information\s+detect(or|ors|ion)\b", re.I)),
+    # Reversed and adjacent forms of the same overclaims ("truth detection", "lie detector", ...).
+    ("truth-claim-rev", re.compile(r"\btruth[\s-]+(detect\w*|verif\w*|check\w*|find\w*|determin\w*)", re.I)),
+    ("lie-detector", re.compile(r"\blie[\s-]+detect\w*", re.I)),
+    (
+        "fake-news-filter",
+        re.compile(
+            r"\bfake[\s-]+news\s+(filter|finder|spotter|blocker|checker|catcher|scanner|buster)\w*", re.I
+        ),
+    ),
+    ("misinformation-classifier", re.compile(r"\b(mis|dis)information\s+(classif|identif|filter)\w*", re.I)),
+    (
+        "finds-fake-news",
+        re.compile(
+            r"\b(find|finds|finding|spot|spots|spotting|catch|catches|catching|expose|exposes|exposing)\s+"
+            r"(fake\s+news|misinformation|disinformation|fake\s+content|false\s+(claims?|information))\b",
+            re.I,
+        ),
+    ),
+    ("verdict-wording", re.compile(r"\b(true|real)\s+or\s+(false|fake)\b", re.I)),
     ("ai-claim", re.compile(r"\bAI[\s-]*(based|powered|driven|enabled)\b", re.I)),
     ("fake-verdict-label", re.compile(r"\bFAKE\b")),
 ]

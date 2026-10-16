@@ -33,6 +33,21 @@ def guard():
         ("A misinformation detector for teams.", "misinformation-detector"),
         ("An AI-based system for reviewers.", "ai-claim"),
         ("The card shows a FAKE badge.", "fake-verdict-label"),
+        ("A truth detection tool.", "truth-claim-rev"),
+        ("Our truth detector is fast.", "truth-claim-rev"),
+        ("The truth-detection engine runs nightly.", "truth-claim-rev"),
+        ("A truth\nverification service.", "truth-claim-rev"),
+        ("Meet the truth checker.", "truth-claim-rev"),
+        ("A lie detector for news.", "lie-detector"),
+        ("Lie-detecting software.", "lie-detector"),
+        ("A fake news filter for editors.", "fake-news-filter"),
+        ("Our fake-news spotter.", "fake-news-filter"),
+        ("A misinformation classifier.", "misinformation-classifier"),
+        ("Disinformation classification at scale.", "misinformation-classifier"),
+        ("It finds fake news before you do.", "finds-fake-news"),
+        ("It spots misinformation.", "finds-fake-news"),
+        ("Each post is labelled true or false.", "verdict-wording"),
+        ("Shows a real or fake verdict.", "verdict-wording"),
     ],
 )
 def test_rules_fire_on_banned_samples(guard, sample, rule_id):
@@ -51,6 +66,13 @@ def test_rules_fire_on_banned_samples(guard, sample, rule_id):
         "a misinformation early-warning system",
         "Baseline Detection & Evaluation",
         "This is a flag for human review.",
+        "Truth is not decided here; a reviewer decides.",
+        "We never claim to detect anything about the truth value of a post.",
+        "It flags posts for human review.",
+        "The lie of the land is mapped by a detector pipeline.",
+        "A fake news story can spread quickly.",
+        "Whether a claim is true is for the reviewer to decide.",
+        "Verified accounts are shown with a badge.",
     ],
 )
 def test_clean_samples_pass(guard, sample):
@@ -66,6 +88,26 @@ def test_allow_marker_on_line_and_line_before(guard):
     far = guard.scan_text(f"{marker}\nfiller\n{banned}", "a.md")
     assert [f.rule for f in far] == ["truth-claim"]
     assert far[0].line == 3
+
+
+@pytest.mark.parametrize(
+    "banned",
+    [
+        "A truth detection tool.",
+        "Our lie detector.",
+        "A fake news filter.",
+        "A misinformation classifier.",
+        "It finds fake news.",
+        "True or false.",
+    ],
+)
+def test_allow_marker_covers_the_new_rules(guard, banned):
+    marker = "<!-- copy-guard: allow -->"
+    assert guard.scan_text(f"{banned} {marker}", "a.md") == []
+    assert guard.scan_text(f"{marker}\n{banned}", "a.md") == []
+    far = guard.scan_text(f"{marker}\nfiller\n{banned}", "a.md")
+    assert len(far) == 1 and far[0].line == 3
+    assert guard.scan_text(banned, "a.md") != []
 
 
 def test_readme_requires_flag_phrase(guard, tmp_path):
