@@ -1,0 +1,23 @@
+# The Dockerfile copies explicit paths (pyproject.toml, uv.lock, src), so this file is a second
+# line of defence: nothing below can reach the build context by accident (D-01, D-18).
+.git
+.github
+.venv
+.env*
+**/__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.hypothesis
+.coverage*
+htmlcov
+legacy
+tests
+scripts
+.planning
+.claude
+node_modules
+package*.json
+*.md
+Dockerfile
+.dockerignore
