@@ -114,3 +114,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 Last session: 2026-10-16T10:35:19.368Z
 Stopped at: Phase 1 complete, ready to plan Phase 2
 Resume file: None
+
+See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
