@@ -1,7 +1,7 @@
 ---
 phase: 01-secure-honest-foundation
 verified: 2026-10-16T11:30:00Z
-status: human_needed
+status: passed
 score: 5/5 roadmap success criteria verified (6/6 requirements verified for Phase 1 scope)
 covered_files:
   - .env.example
@@ -58,7 +58,7 @@ human_verification:
 
 **Phase Goal:** The existing service stops misleading its users: no secrets in the repo, upstream failures surface as honest errors, any demo data is explicitly labelled, input is validated, and the prototype's current behaviour is pinned by tests before anything is refactored.
 **Verified:** 2026-10-16T11:30:00Z (HEAD 8dd679e689a8aaa2c22fe92fd148899c9ccb87be, equal to origin/claude/sleepy-lovelace-13aums)
-**Status:** human_needed
+**Status:** passed
 **Re-verification:** No, initial verification
 
 All five roadmap success criteria are verified against the code. Three owner-side items remain, so the phase is `human_needed`. There are no gaps. Verification used the code, the tests and live exercise of the app with the network mocked, not the SUMMARY.md claims.
@@ -140,3 +140,10 @@ No gaps. Phase 1 achieves its goal in the code: no credential in the tree, upstr
 
 _Verified: 2026-10-16T11:30:00Z_
 _Verifier: Claude (gsd-verifier)_
+
+
+## Human verification resolved (2026-10-17)
+
+1. Live smoke test: passed against the real GNews API (200 envelope with synthetic false; 401 gives upstream_unauthorized; a malformed key gives 400 which surfaces as upstream_bad_response). Recorded in 01-UAT.md.
+2. Old key: owner confirmed it was changed and deleted.
+3. Key policy: owner chose trimming; surrounding whitespace is now trimmed (config.py), interior whitespace and non-ASCII are still rejected.

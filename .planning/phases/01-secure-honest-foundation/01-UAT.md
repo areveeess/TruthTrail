@@ -1,19 +1,14 @@
 ---
-status: partial
+status: complete
 phase: 01-secure-honest-foundation
 source: 01-01-SUMMARY.md, 01-02-SUMMARY.md, 01-03-SUMMARY.md, 01-04-SUMMARY.md, 01-05-SUMMARY.md, 01-06-SUMMARY.md
 started: 2026-10-16T11:09:01Z
-updated: 2026-10-17T15:47:21Z
+updated: 2026-10-17T15:49:59Z
 ---
 
 ## Current Test
-<!-- OVERWRITE each test - shows where we are -->
 
-number: 2
-name: Old key revoked
-expected: |
-  The key that was in commit 1fedcd2 is revoked or deleted at GNews, not merely replaced.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -25,18 +20,22 @@ note: "Assumption A1 refined: GNews answers a malformed key with 400, a well-for
 
 ### 2. Old key revoked
 expected: The key that was in commit 1fedcd2 is revoked or deleted at GNews, not merely replaced.
-result: [pending]
+result: pass
+reported: "the key is changed and deleted"
+
 
 ### 3. Key-policy acceptance
 expected: A malformed key (whitespace or non-ASCII) is rejected at startup instead of being trimmed. User accepts this, or asks for trimming.
-result: [pending]
+result: pass
+reported: "trim it"
+note: "Owner chose to trim rather than reject surrounding whitespace. Implemented in config.py: Settings trims leading/trailing whitespace (newline, CRLF, space, tab); whitespace inside the key and non-ASCII characters are still rejected at startup. fetch_news stays strict. Tests: TRIMMABLE_KEYS and the trim tests in tests/test_settings.py."
 
 ## Summary
 
 total: 3
-passed: 1
+passed: 3
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
