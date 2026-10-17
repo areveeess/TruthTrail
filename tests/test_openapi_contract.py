@@ -114,7 +114,8 @@ def test_actual_bodies_match_declared_models(
     assert live_model.meta.synthetic is False
 
     mock_gnews.replace(responses.GET, gnews_url, json={"errors": ["x"]}, status=401)
-    bad_key = client.get("/analyze", params={"query": "mayor"})
+    # A different query: the identical one is now answered from the TTL cache (D-11).
+    bad_key = client.get("/analyze", params={"query": "mayor resigns"})
     assert bad_key.status_code == 502
     assert bad_key.headers["content-type"].startswith(PROBLEM)
     Problem.model_validate(bad_key.json())

@@ -5,6 +5,7 @@ readiness registry, limiter and cache off ``app.state``. Strict ``Settings`` are
 only in the lifespan (a missing key stops startup with uvicorn exit code 3), never here.
 """
 
+import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 
@@ -13,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from truthtrail.api.analyze import build_analyze_router
+from truthtrail.api.cache import AnalyzeCache
 from truthtrail.api.catchall import CatchAllMiddleware
 from truthtrail.api.health import build_health_router
 from truthtrail.api.limits import LimitedRouter, build_limiter
@@ -48,11 +50,15 @@ def register_default_checks(registry: ReadinessRegistry) -> None:
 
 
 def create_app(
-    *, v1_registrars: Sequence[Callable[[LimitedRouter], None]] | None = None
+    *,
+    cache_timer: Callable[[], float] | None = None,
+    v1_registrars: Sequence[Callable[[LimitedRouter], None]] | None = None,
 ) -> FastAPI:
     """Build a new application; two calls never share routes or state.
 
-    ``v1_registrars`` replaces the default ``V1_REGISTRARS`` list (used by tests).
+    ``cache_timer`` replaces the monotonic clock of the ``/analyze`` cache (used by tests
+    so expiry never sleeps). ``v1_registrars`` replaces the default ``V1_REGISTRARS`` list
+    (used by tests).
     """
     app = FastAPI(
         title="TruthTrail API",
@@ -68,6 +74,7 @@ def create_app(
     # Decorator-only limiting (D-23): no SlowAPIMiddleware, no default_limits.
     limiter = build_limiter()
     app.state.limiter = limiter
+    app.state.analyze_cache = AnalyzeCache(timer=cache_timer or time.monotonic)
     app.include_router(build_analyze_router(limiter))
     app.include_router(build_v1_router(limiter, v1_registrars))
     boot = get_boot_settings()

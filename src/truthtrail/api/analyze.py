@@ -9,10 +9,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import StringConstraints
 from slowapi import Limiter
 
+from truthtrail.api.cache import AnalyzeCache
 from truthtrail.api.problems import PROBLEM_RESPONSES
 from truthtrail.core.config import Settings, get_settings
 from truthtrail.schemas.models import AnalyzeResponse, LiveResult, Meta
@@ -65,6 +66,7 @@ def build_analyze_router(limiter: Limiter) -> APIRouter:
     @limiter.limit(lambda: get_settings().rate_limit_analyze)
     def analyze(
         request: Request,
+        response: Response,
         query: Annotated[
             SearchQuery,
             Query(
@@ -76,32 +78,49 @@ def build_analyze_router(limiter: Limiter) -> APIRouter:
         ],
         settings: Annotated[Settings, Depends(get_settings)],
     ) -> AnalyzeResponse:
-        if settings.demo_mode:
-            # The fixture is the only demo source and is reachable only through this branch.
-            # The validated query is ignored in demo mode: the fixture never changes.
-            return load_demo_fixture()
-        api_key = (
-            settings.gnews_api_key.get_secret_value() if settings.gnews_api_key is not None else ""
-        )
-        articles = fetch_news(query, api_key)
-        # Server receive time: when this service obtained the provider response.
-        data_as_of = datetime.now(UTC).replace(microsecond=0)
-
-        results = [
-            LiveResult(
-                headline=article["title"],
-                source=article["source"],
-                published_at=article["publishedAt"],
-                risk=analyze_risk(article["title"]),
-                risk_method="keyword_baseline",
-            )
-            for article in articles
-        ]
-        meta = Meta(
-            synthetic=False,
-            data_as_of=data_as_of,
-            source_status="ok" if results else "empty",
-        )
-        return AnalyzeResponse(results=results, meta=meta)
+        # The limiter wrapper has already counted this request, so a cache hit still consumes
+        # quota (limit before cache). The header is deliberately not documented in OpenAPI.
+        cache: AnalyzeCache = request.app.state.analyze_cache
+        cached = cache.get(query, settings.demo_mode)
+        if cached is not None:
+            response.headers["X-Cache"] = "hit"
+            return cached
+        # Miss: compute outside the cache lock (the fetch blocks on the network), store only a
+        # success (an exception propagates before the put), then report the miss.
+        result = _compute(query, settings)
+        cache.put(query, settings.demo_mode, result)
+        response.headers["X-Cache"] = "miss"
+        return result
 
     return router
+
+
+def _compute(query: str, settings: Settings) -> AnalyzeResponse:
+    """Build the response for a cache miss: the demo fixture or a live provider fetch."""
+    if settings.demo_mode:
+        # The fixture is the only demo source and is reachable only through this branch.
+        # The validated query is ignored in demo mode: the fixture never changes.
+        return load_demo_fixture()
+    api_key = (
+        settings.gnews_api_key.get_secret_value() if settings.gnews_api_key is not None else ""
+    )
+    articles = fetch_news(query, api_key)
+    # Server receive time: when this service obtained the provider response.
+    data_as_of = datetime.now(UTC).replace(microsecond=0)
+
+    results = [
+        LiveResult(
+            headline=article["title"],
+            source=article["source"],
+            published_at=article["publishedAt"],
+            risk=analyze_risk(article["title"]),
+            risk_method="keyword_baseline",
+        )
+        for article in articles
+    ]
+    meta = Meta(
+        synthetic=False,
+        data_as_of=data_as_of,
+        source_status="ok" if results else "empty",
+    )
+    return AnalyzeResponse(results=results, meta=meta)
