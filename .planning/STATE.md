@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 2
 current_phase_name: Engineering Baseline
-current_plan: 11
+current_plan: 12
 status: executing
-stopped_at: Completed 02-10-PLAN.md
-last_updated: "2026-10-17T19:12:53.293Z"
+stopped_at: Completed 02-11-PLAN.md
+last_updated: "2026-10-17T19:22:09.625Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 2 plans verified by plan checker; owner review pending
-state_head: 19f3d0165da8f37cc35b6b458cf8f21caef78777
+state_head: 7edaf805dcb65fd74967e5cd804bba410714996c
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 18
-  completed_plans: 15
+  completed_plans: 17
 milestone_name: Lean MVP
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 2 — Engineering Baseline
-Current Plan: 11
+Current Plan: 12
 Total Plans in Phase: 12
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 1 complete, transitioned to Phase 2
@@ -75,6 +75,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 02 P08 | 10min | 2 tasks | 6 files |
 | Phase 02 P09 | 15min | 2 tasks | 5 files |
 | Phase 02 P10 | 20min | 2 tasks | 6 files |
+| Phase 02 P11 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-08: /analyze TTL cache (600 s, 256 entries, key = trimmed casefolded query + demo flag) on app.state.analyze_cache; every access locked, fetch outside the lock, successes only, X-Cache hit/miss undocumented in OpenAPI, limit applies before the cache
 - [Phase 02]: 02-09: explicit retry loop in services/gnews.py (3 attempts, 0.3/0.6 s backoff plus jitter, 8 s budget, only timeouts, non-TLS connect errors and 500/502/503/504); time seams _monotonic/_sleep/_jitter patched by tests, autouse no_real_sleep fixture; provider Retry-After clamped to 1..3600; ENG-06 complete
 - [Phase 02]: 02-10: cascade invariants are pure stdlib functions in core/cascade.py (order_events key observed_at, depth, event_id; validate_cascade rejects duplicates, naive datetimes, cycles, parent later than child, tolerates orphans); load_demo_fixture validates every result and the lifespan loads the fixture in demo mode, but the served body is never reordered (D-19); Hypothesis ci/dev profiles; ENG-03 complete
+- [Phase 02]: 02-11: Dockerfile is multi-stage with python:3.13-slim and uv 0.13.1 pinned by tag and digest (re-verified against the registries), uid 10001, urllib HEALTHCHECK, CMD with --no-proxy-headers; properties enforced by tests/test_container_files.py; scripts/smoke_app.py proves a non-editable no-dev install serves health, ready and demo analyze; docker build unverified (no daemon), ENG-05 stays Pending until plan 02-12
 
 ### Pending Todos
 
@@ -131,8 +133,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-17T19:12:53.221Z
-Stopped at: Completed 02-10-PLAN.md
+Last session: 2026-10-17T19:22:09.552Z
+Stopped at: Completed 02-11-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
