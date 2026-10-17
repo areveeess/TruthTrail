@@ -16,7 +16,7 @@ TruthTrail began as a hackathon prototype whose "risk" score is keyword matching
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Secure & Honest Foundation** - Secrets out of the repo, honest upstream errors, provenance flags, validated typed responses, and tests that pin current behaviour before any refactor
+- [x] **Phase 1: Secure & Honest Foundation** - Secrets out of the repo, honest upstream errors, provenance flags, validated typed responses, and tests that pin current behaviour before any refactor (completed 2026-10-17)
 - [ ] **Phase 2: Engineering Baseline** - `src/truthtrail` package, pinned dependencies, pytest + hypothesis, CI, Dockerfile, `/health` and `/ready`, CORS, rate limiting, caching, timeouts
 - [ ] **Phase 3: Real Propagation Data** - Source spike, Postgres schema, bounded Bluesky Jetstream collector, enrich step, `/v1` read API and DB-served news context
 - [ ] **Phase 4: Baseline Detection & Evaluation** - Dataset scripts and disjoint splits, evaluation harness with baseline 0, calibrated TF-IDF + LR, integrity checks, hash-verified model serving, model card
@@ -37,7 +37,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. An empty, oversize or malformed query is rejected with 422, and `/openapi.json` shows a Pydantic response model for every endpoint (checked by a test that walks the schema).
   5. Characterization tests pinning current `/analyze` behaviour, known keyword defects included (e.g. "secure" matching "cure", "studies" matching "dies", "couple" matching "coup"), are committed before any behavioural change, and a CI check fails when README, API docs or UI copy contains banned phrases such as "detects the truth" or a "FAKE" verdict badge; the README now says "flag for human review".
 
-**Plans**: 6/6 plans executed
+**Plans**: 6/6 plans complete
 
 Plans:
 **Wave 1**
@@ -152,7 +152,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 (Phases 3 and 4 may 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Secure & Honest Foundation | 6/6 | In Progress | - |
+| 1. Secure & Honest Foundation | 6/6 | Complete    | 2026-10-17 |
 | 2. Engineering Baseline | 0/TBD | Not started | - |
 | 3. Real Propagation Data | 0/TBD | Not started | - |
 | 4. Baseline Detection & Evaluation | 0/TBD | Not started | - |
