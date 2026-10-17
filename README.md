@@ -38,13 +38,25 @@ Copy `.env.example` to `.env` and fill in values. Never commit `.env`. Variables
 
 ## Run and check
 
+Dependency versions are pinned by `uv.lock` (Python 3.13). Install [uv](https://docs.astral.sh/uv/), then:
+
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt
-DEMO_MODE=true .venv/bin/uvicorn main:app      # demo data, no key needed
-.venv/bin/python -m pytest -q                  # tests
-.venv/bin/python scripts/copy_guard.py         # copy guard: README, docs and API strings
+uv sync                                        # serving + dev dependencies; the train group is not installed by default
+DEMO_MODE=true uv run uvicorn main:app         # demo data, no key needed (root main.py is a shim for truthtrail.main:app)
+uv run pytest -q                               # tests
+uv run python scripts/copy_guard.py            # copy guard: README, docs and API strings
 ```
+
+### Windows (PowerShell)
+
+```powershell
+winget install --id=astral-sh.uv -e            # or: py -3.13 -m pip install uv
+uv sync
+$env:DEMO_MODE = "true"; uv run uvicorn main:app
+uv run pytest -q
+```
+
+An existing `.venv` created with pip should be deleted before running `uv sync`.
 
 The secret scan uses a pinned, checksum-verified gitleaks binary:
 
