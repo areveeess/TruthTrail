@@ -53,6 +53,18 @@ filterwarnings = [
     "ignore:Using .httpx. with .starlette.testclient. is deprecated",
 ]
 
+[tool.coverage.run]
+source = ["truthtrail"]
+branch = true
+
+[tool.coverage.report]
+# Measured total on the final Phase 2 tree: 98.342 percent (line plus branch). The gate is the
+# measured baseline minus 2 points (floor(98.342) - 2 = 96). It may only be raised, never lowered.
+# It is not in addopts, so partial test runs never trip it; CI runs `pytest --cov` (D-15).
+fail_under = 96
+show_missing = true
+skip_covered = true
+
 [tool.ruff]
 line-length = 100
 # legacy/ holds the frozen Phase 1 modules; no tool may rewrite them (D-02, D-25).
