@@ -134,6 +134,21 @@ FAILURE_CASES = [
         "3600",
         id="429-capped-at-3600",
     ),
+    # D-13 (review item IN-03): a provider Retry-After of 0 is clamped to 1 second.
+    pytest.param(
+        _status(429, headers={"Retry-After": "0"}),
+        503,
+        "upstream_rate_limited",
+        "1",
+        id="429-retry-after-0-clamped",
+    ),
+    pytest.param(
+        _status(429, headers={"Retry-After": "00"}),
+        503,
+        "upstream_rate_limited",
+        "1",
+        id="429-retry-after-00-clamped",
+    ),
     pytest.param(
         _status(429, headers={"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}),
         503,

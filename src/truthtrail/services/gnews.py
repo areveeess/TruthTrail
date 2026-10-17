@@ -111,10 +111,10 @@ def _fail(
 
 
 def _retry_after(resp: requests.Response) -> int:
-    """Seconds to wait: a numeric Retry-After capped at 3600, otherwise 30."""
+    """Seconds to wait: a numeric Retry-After clamped to 1..3600, otherwise 30 (D-13)."""
     value = resp.headers.get("Retry-After", "").strip()
     if value.isascii() and value.isdigit():
-        return min(int(value), MAX_RETRY_AFTER)
+        return max(1, min(int(value), MAX_RETRY_AFTER))
     return DEFAULT_RETRY_AFTER
 
 

@@ -11,6 +11,7 @@ assert expression or message; booleans and single values are computed first.
 
 import itertools
 import logging
+import time
 
 import pytest
 import requests
@@ -329,3 +330,131 @@ def test_every_attempt_sends_the_same_key_and_never_follows_redirects(
     redirects_ok = redirects == [False] * 3
     assert keys_ok
     assert redirects_ok
+
+
+# --- end to end through GET /analyze (ROADMAP criterion 5) ---------------------------------
+
+
+def test_analyze_failing_upstream_stops_after_three_calls(
+    client, mock_gnews, gnews_url, fake_key, fake_clock
+) -> None:
+    mock_gnews.get(gnews_url, status=503, json={"errors": ["simulated"]})
+
+    started = time.perf_counter()
+    response = client.get("/analyze", params={"query": "x"})
+    elapsed = time.perf_counter() - started
+
+    body = response.json()
+    content_type = response.headers["content-type"]
+    key_in_body = fake_key in response.text
+    host_in_body = "gnews.io" in response.text
+    assert response.status_code == 502
+    assert content_type.startswith("application/problem+json")
+    assert body["code"] == "upstream_bad_response"
+    assert _call_count(mock_gnews) == 3
+    assert elapsed < 2.0
+    assert not key_in_body
+    assert not host_in_body
+
+
+def test_analyze_timing_out_upstream_stops_after_three_calls(
+    client, mock_gnews, gnews_url, fake_clock
+) -> None:
+    mock_gnews.get(gnews_url, body=requests.exceptions.ConnectTimeout("simulated"))
+
+    started = time.perf_counter()
+    response = client.get("/analyze", params={"query": "x"})
+    elapsed = time.perf_counter() - started
+
+    body = response.json()
+    assert response.status_code == 503
+    assert body["code"] == "upstream_timeout"
+    assert response.headers.get("retry-after") == "30"
+    assert _call_count(mock_gnews) == 3
+    assert elapsed < 2.0
+
+
+def test_analyze_slow_upstream_is_stopped_by_the_budget(
+    client, mock_gnews, gnews_url, fake_clock
+) -> None:
+    seen: list[tuple[float, float]] = []
+    _burning_callback(mock_gnews, gnews_url, fake_clock, seen, None)
+
+    started = time.perf_counter()
+    response = client.get("/analyze", params={"query": "x"})
+    elapsed = time.perf_counter() - started
+
+    body = response.json()
+    assert response.status_code == 503
+    assert body["code"] == "upstream_timeout"
+    assert response.headers.get("retry-after") == "30"
+    assert 0 < _call_count(mock_gnews) < gnews_fetcher.MAX_ATTEMPTS
+    assert fake_clock.now <= gnews_fetcher.BUDGET + 1e-9
+    assert elapsed < 2.0
+
+
+def test_retry_logs_carry_the_attempt_number_and_no_key_or_url(
+    mock_gnews, gnews_url, fake_key, fake_clock, caplog
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    leaky = requests.exceptions.ConnectTimeout(
+        f"simulated https://gnews.io/api/v4/search?q=x&token={fake_key}"
+    )
+    mock_gnews.get(gnews_url, body=leaky)
+
+    with pytest.raises(UpstreamError):
+        gnews_fetcher.fetch_news("x", fake_key)
+
+    records = [r for r in caplog.records if r.name == gnews_fetcher.__name__]
+    messages = [r.getMessage() for r in records]
+    key_in_logs = fake_key in caplog.text
+    url_in_messages = any("http" in m or "gnews.io" in m for m in messages)
+    attempt_logged = any(
+        r.levelno == logging.INFO and "attempt=1" in r.getMessage() for r in records
+    )
+    second_logged = any(
+        r.levelno == logging.INFO and "attempt=2" in r.getMessage() for r in records
+    )
+    has_warning = any(r.levelno == logging.WARNING for r in records)
+    assert not key_in_logs
+    assert not url_in_messages
+    assert attempt_logged
+    assert second_logged
+    assert has_warning
+
+
+def test_exhausted_retries_raise_from_none_without_key_or_url(
+    mock_gnews, gnews_url, fake_key, fake_clock
+) -> None:
+    leaky = requests.exceptions.ConnectionError(
+        f"simulated https://gnews.io/api/v4/search?q=x&token={fake_key}"
+    )
+    mock_gnews.get(gnews_url, body=leaky)
+
+    with pytest.raises(UpstreamError) as excinfo:
+        gnews_fetcher.fetch_news("x", fake_key)
+
+    exc = excinfo.value
+    text = f"{exc!s} {exc!r} {exc.detail}"
+    key_leaked = fake_key in text
+    host_leaked = "gnews.io" in text
+    assert exc.__cause__ is None
+    assert exc.__suppress_context__ is True
+    assert not key_leaked
+    assert not host_leaked
+
+
+def test_a_redirect_is_never_followed_or_retried_through_the_endpoint(
+    client, mock_gnews, gnews_url, gnews_article, gnews_payload, fake_clock
+) -> None:
+    target = "https://elsewhere.example.org/api"
+    mock_gnews.get(gnews_url, status=302, headers={"Location": target}, body="")
+    mock_gnews.get(target, json=gnews_payload(gnews_article()))
+
+    response = client.get("/analyze", params={"query": "x"})
+
+    urls_called = [call.request.url for call in mock_gnews.calls]
+    redirect_followed = any(url.startswith(target) for url in urls_called)
+    assert response.status_code == 502
+    assert len(urls_called) == 1
+    assert not redirect_followed
