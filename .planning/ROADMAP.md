@@ -68,11 +68,11 @@ Plans:
   4. `docker build` succeeds and the running container answers `/health` with 200, while `/ready` returns 503 whenever a registered dependency check fails (proved by a test with an injected failing check); the database check lands in Phase 3 and the model-artifact check in Phase 4.
   5. CORS accepts only configured origins, requests over the rate limit receive 429, repeated reads are served from a TTL cache, and outbound HTTP uses timeouts and bounded retries (each proven by a test, including a mocked slow or failing upstream that stops after the retry bound).
 
-**Plans**: 12 plans
+**Plans**: 1/12 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Wave 1: standalone line-ending commit, frozen Phase 1 OpenAPI golden snapshot, hash pins for the files that move (ENG-01)
+- [x] 02-01-PLAN.md — Wave 1: standalone line-ending commit, frozen Phase 1 OpenAPI golden snapshot, hash pins for the files that move (ENG-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 02-02-PLAN.md — Wave 2: pure git mv into src/truthtrail and legacy/, retarget imports and tests, root shim, legacy-unreachable proof (ENG-01)
@@ -190,7 +190,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 (Phases 3 and 4 may 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure & Honest Foundation | 6/6 | Complete    | 2026-10-17 |
-| 2. Engineering Baseline | 0/TBD | Not started | - |
+| 2. Engineering Baseline | 1/12 | In Progress | - |
 | 3. Real Propagation Data | 0/TBD | Not started | - |
 | 4. Baseline Detection & Evaluation | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |

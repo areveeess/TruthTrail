@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 2
 current_phase_name: Engineering Baseline
-status: ready_to_execute
-stopped_at: Phase 2 planned (12 plans, checker passed); awaiting owner review before execution
-last_updated: "2026-10-17T15:52:29.419Z"
+current_plan: 2
+status: executing
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-10-17T18:00:05.503Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 2 plans verified by plan checker; owner review pending
-state_head: d447539d561ded1c2755554a04791afe850680db
+state_head: 2fd84d791b3a9d570f104ae5ca7ed007b1ac24aa
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 17
+  total_plans: 18
+  completed_plans: 7
 milestone_name: Lean MVP
 ---
 
@@ -30,8 +30,9 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 2 — Engineering Baseline
-Plan: Not started
-Status: Ready to plan
+Current Plan: 2
+Total Plans in Phase: 12
+Status: Ready to execute
 Last activity: 2026-10-17 — Phase 1 complete, transitioned to Phase 2
 
 Progress: [██░░░░░░░░] 17%
@@ -64,6 +65,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 01 P04 | 3 min | 3 tasks | 6 files |
 | Phase 01 P05 | 9min | 3 tasks | 5 files |
 | Phase 01 P06 | 6 min | 3 tasks | 8 files |
+| Phase 02 P01 | 15 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -89,6 +91,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-05: declared OpenAPI errors list only application/problem+json; demo mode ignores the validated query
 - [Phase 01]: 01-06: gitleaks range scan bounded with ^FLOOR in addition to the floor clamp so pre-floor history is never scanned (plan-check cap fix)
 - [Phase 01]: 01-06: copy guard skips OpenAPI identifier keys only for string leaves so a property named type cannot hide its description
+- [Phase 02]: 02-01: ENG-01 stays Pending until plan 02-02 performs the package move; 02-01 only freezes line endings, the Phase 1 OpenAPI golden snapshot and content hashes
+- [Phase 02]: 02-01: byte-identical for legacy files means identical after CR+LF to LF; Phase 1 raw git diff gate now returns 1 by design, replaced by --ignore-cr-at-eol
 
 ### Pending Todos
 
@@ -111,8 +115,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-16T10:35:19.368Z
-Stopped at: Phase 1 complete, ready to plan Phase 2
+Last session: 2026-10-17T18:00:05.415Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
