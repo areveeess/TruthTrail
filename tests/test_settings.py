@@ -126,6 +126,9 @@ def test_uvicorn_exits_on_missing_key(tmp_path: Path) -> None:
         "PYTHONDONTWRITEBYTECODE": "1",
         "DATABASE_URL": DATABASE_URL_MARKER,
     }
+    # SYSTEMROOT is required on Windows: without it asyncio cannot initialise Winsock (WinError 10106).
+    if "SYSTEMROOT" in os.environ:
+        env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
 
     result = subprocess.run(
         [sys.executable, "-m", "uvicorn", "main:app", "--port", "0"],

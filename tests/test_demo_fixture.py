@@ -2,6 +2,7 @@
 
 import importlib.util
 import json
+import os
 import random
 import re
 import subprocess
@@ -105,6 +106,11 @@ def generator() -> ModuleType:
     return module
 
 
+def _windows_system_env() -> dict[str, str]:
+    """Pass through the variables a Windows child process needs; empty elsewhere."""
+    return {k: os.environ[k] for k in ("SYSTEMROOT",) if k in os.environ}
+
+
 def run_check(*extra: str) -> subprocess.CompletedProcess:
     """Run the generator CLI in check mode from the repository root."""
     return subprocess.run(
@@ -112,7 +118,8 @@ def run_check(*extra: str) -> subprocess.CompletedProcess:
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
-        env={"PYTHONDONTWRITEBYTECODE": "1", "PATH": ""},
+        # SYSTEMROOT is required on Windows: without it asyncio cannot initialise Winsock (WinError 10106).
+        env={"PYTHONDONTWRITEBYTECODE": "1", "PATH": "", **_windows_system_env()},
     )
 
 
