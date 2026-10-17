@@ -3,9 +3,9 @@ phase: "2"
 slug: "engineering-baseline"
 # status lifecycle: draft (seeded by plan-phase) -> validated (set by plan 02-12 Task 3 step 6 when the phase gate passes; /gsd-validate-phase may re-audit it afterwards)
 # audit-milestone section 5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-10-17"
 ---
 
@@ -45,34 +45,34 @@ Threat refs point at the `<threat_model>` tables in the PLAN files (IDs T-02-01 
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 02-01-01 | 02-01 | 1 | ENG-01 | T-02-01, T-02-03 | CR+LF normalised in one standalone commit of seven named paths; legacy files identical modulo line endings; suite unchanged | regression | `.venv/bin/python -m pytest -q` and `git diff --quiet --ignore-cr-at-eol 9b5b085 -- risk_analyzer.py spread_simulator.py users.py` | existing | pending |
-| 02-01-02 | 02-01 | 1 | ENG-01 | T-02-02 | Phase 1 OpenAPI document frozen from unmoved code; only declared additions allowed; golden sha256 pinned | contract | `.venv/bin/python -m pytest -q tests/test_openapi_golden.py` | W0 | pending |
-| 02-01-03 | 02-01 | 1 | ENG-01 | T-02-03 | LF-normalised sha256 pins for the files that will move; patch targets and subprocess env centralised (SYSTEMROOT) | unit | `.venv/bin/python -m pytest -q tests/test_legacy_frozen.py tests/test_provenance_demo.py tests/test_request_validation.py` | W0 | pending |
-| 02-02-01 | 02-02 | 2 | ENG-01 | T-02-05 | Nine pure renames at 100 percent similarity; history reachable with `--follow`; deliberate red commit | git | `names=$(git show -M --name-status --format= HEAD) && test -z "$(printf '%s\n' "$names" \| grep -v '^R100')" && test "$(printf '%s\n' "$names" \| wc -l)" = 9` | n/a | pending |
-| 02-02-02 | 02-02 | 2 | ENG-01 | T-02-05, T-02-06 | Suite green again with only import/patch-target/path edits; fixture and legacy bytes unchanged; shim keeps `uvicorn main:app` fail-fast (exit 3) | regression | `.venv/bin/python -m pytest -q` and `.venv/bin/python scripts/generate_demo_fixture.py --check` | existing | pending |
-| 02-02-03 | 02-02 | 2 | ENG-01 | T-02-04 | Package never imports legacy (AST walk with negative control); importing the app loads no legacy module; legacy not findable on the serving path; shim identity | unit + subprocess | `.venv/bin/python -m pytest -q tests/test_no_legacy_imports.py tests/test_main_shim.py` | W0 | pending |
-| 02-03-01 | 02-03 | 3 | ENG-02 | T-02-07, T-02-08, T-02-SC | Exact-pinned deps, serving/dev/train split with `train` excluded by default, lock accepted by uv 0.13.1 and 0.11.32, fresh clone installs, no `readme`, pytest.ini and requirements files retired | unit + tooling | `.venv/bin/python -m pytest -q tests/test_dependency_groups.py` and `uv lock --check` and `bash scripts/gitleaks_scan.sh {bin} a5dd8257e920923677c60e70611a6f36d87747b2 HEAD a5dd8257e920923677c60e70611a6f36d87747b2` | W0 | pending |
-| 02-03-02 | 02-03 | 3 | ENG-04, ENG-02 | T-02-09 | CI copy-guard and tests jobs use SHA-pinned setup-uv and locked sync; job names and gitleaks job unchanged; README setup text on uv | static contract | `.venv/bin/python -m pytest -q tests/test_ci_workflow.py` and `.venv/bin/python scripts/copy_guard.py` | W0 | pending |
-| 02-04-01 | 02-04 | 4 | ENG-04 | T-02-10 | Ruff configured; mechanical autofix and format in one commit; legacy and keyword_baseline untouched | lint + regression | `.venv/bin/ruff format --check .` and `.venv/bin/python -m pytest -q tests/test_legacy_frozen.py tests/test_openapi_golden.py` | existing | pending |
-| 02-04-02 | 02-04 | 4 | ENG-04 | T-02-10, T-02-11 | Remaining 24 findings fixed by hand without blanket noqa; OpenAPI strings byte-identical; formatter commit recorded for blame | lint | `.venv/bin/ruff check . && .venv/bin/ruff format --check .` | existing | pending |
-| 02-04-03 | 02-04 | 4 | ENG-04 | T-02-11 | mypy strict clean on src/truthtrail (generics, Mapping headers, decorator handlers, lifespan type); behaviour and handler order unchanged | typecheck | `.venv/bin/mypy` and `.venv/bin/python -m pytest -q` | existing | pending |
-| 02-05-01 | 02-05 | 5 | ENG-06 | T-02-15 | `create_app()` factory builds independent apps; only BootSettings at construction (fail-fast exit 3 preserved); Problem.synthetic is Literal[False] with const declared | integration | `.venv/bin/python -m pytest -q tests/test_app_factory.py tests/test_openapi_golden.py tests/test_settings.py::test_uvicorn_exits_on_missing_key` | W0 | pending |
-| 02-05-02 | 02-05 | 5 | ENG-06 | T-02-12, T-02-13, T-02-14 | CORS only for configured origins; invalid origins fail construction without echoing; 500/404/422 carry ACAO; catch-all logs class name only | integration | `.venv/bin/python -m pytest -q tests/test_cors.py` | W0 | pending |
-| 02-06-01 | 02-06 | 6 | ENG-05 | T-02-18 | Readiness registry fails closed (raise, non-True), rejects duplicates and blank names, never logs exception text | unit | `.venv/bin/python -m pytest -q tests/test_readiness_registry.py` | W0 | pending |
-| 02-06-02 | 02-06 | 6 | ENG-05 | T-02-16, T-02-17 | `/health` 200; `/ready` 200 with no checks, 503 problem+json naming only failed checks (injected failing and raising checks), recovery; OpenAPI additions limited to /health and /ready | integration + contract | `.venv/bin/python -m pytest -q tests/test_health_ready.py tests/test_openapi_golden.py tests/test_openapi_contract.py` | W0 | pending |
-| 02-07-01 | 02-07 | 7 | ENG-06 | T-02-19, T-02-22 | `/analyze` limited per IP (default 10 per minute), 429 problem+json with Retry-After >= 1 and provenance, health endpoints and 422s not counted, per-IP and per-app isolation, invalid limit fails startup, 429 declared in OpenAPI | integration | `.venv/bin/python -m pytest -q tests/test_rate_limit.py tests/test_openapi_golden.py` | W0 | pending |
-| 02-07-02 | 02-07 | 7 | ENG-06 | T-02-20, T-02-21 | `/v1` LimitedRouter returns 429 for a probe route (fail-closed proof), handler without `request` cannot register, spoofed X-Forwarded-For ignored unless trusted; a REAL uvicorn started with `--no-proxy-headers` ignores a spoofed X-Forwarded-For (negative control: uvicorn default flags let it through) | integration + subprocess | `.venv/bin/python -m pytest -q tests/test_v1_limits.py tests/test_proxy_headers_server.py` | W0 | pending |
-| 02-08-01 | 02-08 | 8 | ENG-06 | T-02-28, T-02-29, T-02-31 | AnalyzeCache: TTL (599 s hit, 601 s miss), LRU bound 256, normalised keys, lock-guarded, injectable clock | unit | `.venv/bin/python -m pytest -q tests/test_cache_unit.py` | W0 | pending |
-| 02-08-02 | 02-08 | 8 | ENG-06 | T-02-28, T-02-30 | `/analyze` hit/miss with `X-Cache`, original `data_as_of` kept, errors never cached, empty result cached, limit applies before cache | integration | `.venv/bin/python -m pytest -q tests/test_cache.py` | W0 | pending |
-| 02-09-01 | 02-09 | 9 | ENG-06 | T-02-32, T-02-33, T-02-34 | Retry loop: 3 attempts, 0.3/0.6 s backoff, no retry on 4xx/429/3xx/SSL, 8 s budget, Phase 1 mapping unchanged on exhaustion, no real sleeping | integration (responses) | `.venv/bin/python -m pytest -q tests/test_retries.py tests/test_upstream_errors.py` | W0 | pending |
-| 02-09-02 | 02-09 | 9 | ENG-06 | T-02-32, T-02-33, T-02-35 | Failing and slow upstream stop at the bound through `GET /analyze`; log hygiene across retries; `Retry-After: 0` becomes 1 | integration | `.venv/bin/python -m pytest -q tests/test_retries.py tests/test_upstream_errors.py` | W0 | pending |
-| 02-10-01 | 02-10 | 10 | ENG-03 | T-02-38 | `order_events`/`validate_cascade` properties on arbitrary cascades (ties, shuffles, mutants killed); Hypothesis `ci` profile | property | `.venv/bin/python -m pytest -q tests/test_cascade_properties.py --hypothesis-profile=ci` | W0 | pending |
-| 02-10-02 | 02-10 | 10 | ENG-03 | T-02-36, T-02-37 | Fixture load is gated by `validate_cascade`; demo startup fails on a violating fixture; served order unchanged; stdlib-only core module | integration | `.venv/bin/python -m pytest -q tests/test_cascade_gate.py tests/test_demo_fixture.py tests/test_legacy_frozen.py` | W0 | pending |
-| 02-11-01 | 02-11 | 11 | ENG-05 | T-02-24, T-02-25, T-02-26 | Dockerfile static contract: digest-pinned stages, non-root, no secrets, HEALTHCHECK on /health, exact CMD including `--no-proxy-headers`, legacy/tests/scripts not copied, .dockerignore entries | static | `.venv/bin/python -m pytest -q tests/test_container_files.py` | W0 | pending |
-| 02-11-02 | 02-11 | 11 | ENG-05 | T-02-25 | `--locked --no-dev --no-editable` install serves /health, /ready and demo /analyze (X-Cache miss then hit); legacy, dev and train modules not importable | smoke | `env_dir=...; UV_PROJECT_ENVIRONMENT="$env_dir" uv sync --locked --no-dev --no-editable && "$env_dir/bin/python" scripts/smoke_app.py --python "$env_dir/bin/python"` | W0 | pending |
-| 02-12-01 | 02-12 | 12 | ENG-03 | T-02-42 | Coverage measured on the final tree; `fail_under` = floor(total) minus 2; gate fires on a 100 percent negative control; not in addopts | coverage | `.venv/bin/python -m pytest --cov --hypothesis-profile=ci -q` and `.venv/bin/python -m pytest -q tests/test_coverage_config.py` | W0 | pending |
-| 02-12-02 | 02-12 | 12 | ENG-04, ENG-05 | T-02-39, T-02-40, T-02-41 | Seven CI jobs (lint, typecheck, audit, docker added); SHA-pinned actions, read-only permissions, timeouts, no secrets; every job command proven locally | static contract | `.venv/bin/python -m pytest -q tests/test_ci_workflow.py` and `uv lock --check` and the pip-audit pair | existing | pending |
-| 02-12-03 | 02-12 | 12 | ENG-02, ENG-04 | T-02-40 | README complete and honest, Windows and uv instructions, all ten environment names documented; phase gate: copy guard, gitleaks from the floor, fixture check, frozen-file blob comparisons, clean tree | doc contract + gate | `.venv/bin/python -m pytest -q tests/test_readme_env_table.py` and `.venv/bin/python scripts/copy_guard.py` and `bash scripts/gitleaks_scan.sh {bin} a5dd8257e920923677c60e70611a6f36d87747b2 HEAD a5dd8257e920923677c60e70611a6f36d87747b2` | W0 | pending |
+| 02-01-01 | 02-01 | 1 | ENG-01 | T-02-01, T-02-03 | CR+LF normalised in one standalone commit of seven named paths; legacy files identical modulo line endings; suite unchanged | regression | `.venv/bin/python -m pytest -q` and `git diff --quiet --ignore-cr-at-eol 9b5b085 -- risk_analyzer.py spread_simulator.py users.py` | existing | green |
+| 02-01-02 | 02-01 | 1 | ENG-01 | T-02-02 | Phase 1 OpenAPI document frozen from unmoved code; only declared additions allowed; golden sha256 pinned | contract | `.venv/bin/python -m pytest -q tests/test_openapi_golden.py` | W0 | green |
+| 02-01-03 | 02-01 | 1 | ENG-01 | T-02-03 | LF-normalised sha256 pins for the files that will move; patch targets and subprocess env centralised (SYSTEMROOT) | unit | `.venv/bin/python -m pytest -q tests/test_legacy_frozen.py tests/test_provenance_demo.py tests/test_request_validation.py` | W0 | green |
+| 02-02-01 | 02-02 | 2 | ENG-01 | T-02-05 | Nine pure renames at 100 percent similarity; history reachable with `--follow`; deliberate red commit | git | `names=$(git show -M --name-status --format= HEAD) && test -z "$(printf '%s\n' "$names" \| grep -v '^R100')" && test "$(printf '%s\n' "$names" \| wc -l)" = 9` | n/a | green |
+| 02-02-02 | 02-02 | 2 | ENG-01 | T-02-05, T-02-06 | Suite green again with only import/patch-target/path edits; fixture and legacy bytes unchanged; shim keeps `uvicorn main:app` fail-fast (exit 3) | regression | `.venv/bin/python -m pytest -q` and `.venv/bin/python scripts/generate_demo_fixture.py --check` | existing | green |
+| 02-02-03 | 02-02 | 2 | ENG-01 | T-02-04 | Package never imports legacy (AST walk with negative control); importing the app loads no legacy module; legacy not findable on the serving path; shim identity | unit + subprocess | `.venv/bin/python -m pytest -q tests/test_no_legacy_imports.py tests/test_main_shim.py` | W0 | green |
+| 02-03-01 | 02-03 | 3 | ENG-02 | T-02-07, T-02-08, T-02-SC | Exact-pinned deps, serving/dev/train split with `train` excluded by default, lock accepted by uv 0.13.1 and 0.11.32, fresh clone installs, no `readme`, pytest.ini and requirements files retired | unit + tooling | `.venv/bin/python -m pytest -q tests/test_dependency_groups.py` and `uv lock --check` and `bash scripts/gitleaks_scan.sh {bin} a5dd8257e920923677c60e70611a6f36d87747b2 HEAD a5dd8257e920923677c60e70611a6f36d87747b2` | W0 | green |
+| 02-03-02 | 02-03 | 3 | ENG-04, ENG-02 | T-02-09 | CI copy-guard and tests jobs use SHA-pinned setup-uv and locked sync; job names and gitleaks job unchanged; README setup text on uv | static contract | `.venv/bin/python -m pytest -q tests/test_ci_workflow.py` and `.venv/bin/python scripts/copy_guard.py` | W0 | green |
+| 02-04-01 | 02-04 | 4 | ENG-04 | T-02-10 | Ruff configured; mechanical autofix and format in one commit; legacy and keyword_baseline untouched | lint + regression | `.venv/bin/ruff format --check .` and `.venv/bin/python -m pytest -q tests/test_legacy_frozen.py tests/test_openapi_golden.py` | existing | green |
+| 02-04-02 | 02-04 | 4 | ENG-04 | T-02-10, T-02-11 | Remaining 24 findings fixed by hand without blanket noqa; OpenAPI strings byte-identical; formatter commit recorded for blame | lint | `.venv/bin/ruff check . && .venv/bin/ruff format --check .` | existing | green |
+| 02-04-03 | 02-04 | 4 | ENG-04 | T-02-11 | mypy strict clean on src/truthtrail (generics, Mapping headers, decorator handlers, lifespan type); behaviour and handler order unchanged | typecheck | `.venv/bin/mypy` and `.venv/bin/python -m pytest -q` | existing | green |
+| 02-05-01 | 02-05 | 5 | ENG-06 | T-02-15 | `create_app()` factory builds independent apps; only BootSettings at construction (fail-fast exit 3 preserved); Problem.synthetic is Literal[False] with const declared | integration | `.venv/bin/python -m pytest -q tests/test_app_factory.py tests/test_openapi_golden.py tests/test_settings.py::test_uvicorn_exits_on_missing_key` | W0 | green |
+| 02-05-02 | 02-05 | 5 | ENG-06 | T-02-12, T-02-13, T-02-14 | CORS only for configured origins; invalid origins fail construction without echoing; 500/404/422 carry ACAO; catch-all logs class name only | integration | `.venv/bin/python -m pytest -q tests/test_cors.py` | W0 | green |
+| 02-06-01 | 02-06 | 6 | ENG-05 | T-02-18 | Readiness registry fails closed (raise, non-True), rejects duplicates and blank names, never logs exception text | unit | `.venv/bin/python -m pytest -q tests/test_readiness_registry.py` | W0 | green |
+| 02-06-02 | 02-06 | 6 | ENG-05 | T-02-16, T-02-17 | `/health` 200; `/ready` 200 with no checks, 503 problem+json naming only failed checks (injected failing and raising checks), recovery; OpenAPI additions limited to /health and /ready | integration + contract | `.venv/bin/python -m pytest -q tests/test_health_ready.py tests/test_openapi_golden.py tests/test_openapi_contract.py` | W0 | green |
+| 02-07-01 | 02-07 | 7 | ENG-06 | T-02-19, T-02-22 | `/analyze` limited per IP (default 10 per minute), 429 problem+json with Retry-After >= 1 and provenance, health endpoints and 422s not counted, per-IP and per-app isolation, invalid limit fails startup, 429 declared in OpenAPI | integration | `.venv/bin/python -m pytest -q tests/test_rate_limit.py tests/test_openapi_golden.py` | W0 | green |
+| 02-07-02 | 02-07 | 7 | ENG-06 | T-02-20, T-02-21 | `/v1` LimitedRouter returns 429 for a probe route (fail-closed proof), handler without `request` cannot register, spoofed X-Forwarded-For ignored unless trusted; a REAL uvicorn started with `--no-proxy-headers` ignores a spoofed X-Forwarded-For (negative control: uvicorn default flags let it through) | integration + subprocess | `.venv/bin/python -m pytest -q tests/test_v1_limits.py tests/test_proxy_headers_server.py` | W0 | green |
+| 02-08-01 | 02-08 | 8 | ENG-06 | T-02-28, T-02-29, T-02-31 | AnalyzeCache: TTL (599 s hit, 601 s miss), LRU bound 256, normalised keys, lock-guarded, injectable clock | unit | `.venv/bin/python -m pytest -q tests/test_cache_unit.py` | W0 | green |
+| 02-08-02 | 02-08 | 8 | ENG-06 | T-02-28, T-02-30 | `/analyze` hit/miss with `X-Cache`, original `data_as_of` kept, errors never cached, empty result cached, limit applies before cache | integration | `.venv/bin/python -m pytest -q tests/test_cache.py` | W0 | green |
+| 02-09-01 | 02-09 | 9 | ENG-06 | T-02-32, T-02-33, T-02-34 | Retry loop: 3 attempts, 0.3/0.6 s backoff, no retry on 4xx/429/3xx/SSL, 8 s budget, Phase 1 mapping unchanged on exhaustion, no real sleeping | integration (responses) | `.venv/bin/python -m pytest -q tests/test_retries.py tests/test_upstream_errors.py` | W0 | green |
+| 02-09-02 | 02-09 | 9 | ENG-06 | T-02-32, T-02-33, T-02-35 | Failing and slow upstream stop at the bound through `GET /analyze`; log hygiene across retries; `Retry-After: 0` becomes 1 | integration | `.venv/bin/python -m pytest -q tests/test_retries.py tests/test_upstream_errors.py` | W0 | green |
+| 02-10-01 | 02-10 | 10 | ENG-03 | T-02-38 | `order_events`/`validate_cascade` properties on arbitrary cascades (ties, shuffles, mutants killed); Hypothesis `ci` profile | property | `.venv/bin/python -m pytest -q tests/test_cascade_properties.py --hypothesis-profile=ci` | W0 | green |
+| 02-10-02 | 02-10 | 10 | ENG-03 | T-02-36, T-02-37 | Fixture load is gated by `validate_cascade`; demo startup fails on a violating fixture; served order unchanged; stdlib-only core module | integration | `.venv/bin/python -m pytest -q tests/test_cascade_gate.py tests/test_demo_fixture.py tests/test_legacy_frozen.py` | W0 | green |
+| 02-11-01 | 02-11 | 11 | ENG-05 | T-02-24, T-02-25, T-02-26 | Dockerfile static contract: digest-pinned stages, non-root, no secrets, HEALTHCHECK on /health, exact CMD including `--no-proxy-headers`, legacy/tests/scripts not copied, .dockerignore entries | static | `.venv/bin/python -m pytest -q tests/test_container_files.py` | W0 | green |
+| 02-11-02 | 02-11 | 11 | ENG-05 | T-02-25 | `--locked --no-dev --no-editable` install serves /health, /ready and demo /analyze (X-Cache miss then hit); legacy, dev and train modules not importable | smoke | `env_dir=...; UV_PROJECT_ENVIRONMENT="$env_dir" uv sync --locked --no-dev --no-editable && "$env_dir/bin/python" scripts/smoke_app.py --python "$env_dir/bin/python"` | W0 | green |
+| 02-12-01 | 02-12 | 12 | ENG-03 | T-02-42 | Coverage measured on the final tree; `fail_under` = floor(total) minus 2; gate fires on a 100 percent negative control; not in addopts | coverage | `.venv/bin/python -m pytest --cov --hypothesis-profile=ci -q` and `.venv/bin/python -m pytest -q tests/test_coverage_config.py` | W0 | green |
+| 02-12-02 | 02-12 | 12 | ENG-04, ENG-05 | T-02-39, T-02-40, T-02-41 | Seven CI jobs (lint, typecheck, audit, docker added); SHA-pinned actions, read-only permissions, timeouts, no secrets; every job command proven locally | static contract | `.venv/bin/python -m pytest -q tests/test_ci_workflow.py` and `uv lock --check` and the pip-audit pair | existing | green |
+| 02-12-03 | 02-12 | 12 | ENG-02, ENG-04 | T-02-40 | README complete and honest, Windows and uv instructions, all ten environment names documented; phase gate: copy guard, gitleaks from the floor, fixture check, frozen-file blob comparisons, clean tree | doc contract + gate | `.venv/bin/python -m pytest -q tests/test_readme_env_table.py` and `.venv/bin/python scripts/copy_guard.py` and `bash scripts/gitleaks_scan.sh {bin} a5dd8257e920923677c60e70611a6f36d87747b2 HEAD a5dd8257e920923677c60e70611a6f36d87747b2` | W0 | green |
 
 *Status: pending / green / red / flaky. Update from the SUMMARY of each plan.*
 
@@ -116,18 +116,18 @@ Additions that edit no existing assertion: new tests appended to `tests/test_res
 
 Test files and infrastructure created by the plans (all must exist before the phase gate):
 
-- [ ] `tests/golden/openapi_phase1.json`, `tests/test_openapi_golden.py`, `tests/test_legacy_frozen.py`; conftest additions `APP_MODULE`, `app_module`, `subprocess_env` (02-01)
-- [ ] `tests/test_no_legacy_imports.py`, `tests/test_main_shim.py` (02-02)
-- [ ] `tests/test_dependency_groups.py`, `tests/test_ci_workflow.py`; framework install `uv sync` (02-03)
-- [ ] `tests/test_app_factory.py`, `tests/test_cors.py`; conftest `client_factory(env, client, app_kwargs)` (02-05)
-- [ ] `tests/test_readiness_registry.py`, `tests/test_health_ready.py` (02-06)
-- [ ] `tests/test_rate_limit.py`, `tests/test_v1_limits.py`, `tests/test_proxy_headers_server.py` (02-07)
-- [ ] `tests/test_cache_unit.py`, `tests/test_cache.py` (02-08)
-- [ ] `tests/test_retries.py`; conftest autouse `no_real_sleep` (02-09)
-- [ ] `tests/test_cascade_properties.py`, `tests/test_cascade_gate.py`; conftest Hypothesis profiles (02-10)
-- [ ] `tests/test_container_files.py`, `scripts/smoke_app.py` (02-11)
-- [ ] `tests/test_coverage_config.py`, `tests/test_readme_env_table.py`; extended `tests/test_ci_workflow.py` (02-12)
-- [ ] Tool configuration: `pyproject.toml` (pytest, ruff, mypy, coverage), `.gitattributes`, `.gitignore` (`.hypothesis/`), `.dockerignore`, `Dockerfile`, `.github/workflows/ci.yml`
+- [x] `tests/golden/openapi_phase1.json`, `tests/test_openapi_golden.py`, `tests/test_legacy_frozen.py`; conftest additions `APP_MODULE`, `app_module`, `subprocess_env` (02-01)
+- [x] `tests/test_no_legacy_imports.py`, `tests/test_main_shim.py` (02-02)
+- [x] `tests/test_dependency_groups.py`, `tests/test_ci_workflow.py`; framework install `uv sync` (02-03)
+- [x] `tests/test_app_factory.py`, `tests/test_cors.py`; conftest `client_factory(env, client, app_kwargs)` (02-05)
+- [x] `tests/test_readiness_registry.py`, `tests/test_health_ready.py` (02-06)
+- [x] `tests/test_rate_limit.py`, `tests/test_v1_limits.py`, `tests/test_proxy_headers_server.py` (02-07)
+- [x] `tests/test_cache_unit.py`, `tests/test_cache.py` (02-08)
+- [x] `tests/test_retries.py`; conftest autouse `no_real_sleep` (02-09)
+- [x] `tests/test_cascade_properties.py`, `tests/test_cascade_gate.py`; conftest Hypothesis profiles (02-10)
+- [x] `tests/test_container_files.py`, `scripts/smoke_app.py` (02-11)
+- [x] `tests/test_coverage_config.py`, `tests/test_readme_env_table.py`; extended `tests/test_ci_workflow.py` (02-12)
+- [x] Tool configuration: `pyproject.toml` (pytest, ruff, mypy, coverage), `.gitattributes`, `.gitignore` (`.hypothesis/`), `.dockerignore`, `Dockerfile`, `.github/workflows/ci.yml`
 
 ---
 
@@ -148,14 +148,14 @@ All items are **NON-GATING**: they never block a plan, the phase gate or `/gsd-v
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 60s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 60s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** executor-validated on 2026-10-17; ROADMAP criteria 2 and 4 pending human confirmation (see Manual-Only Verifications)
 
 **Ownership of the flip:** plan 02-12 Task 3 step 6 sets `status: validated`, `nyquist_compliant: true` and `wave_0_complete: true`, ticks the boxes the evidence supports and sets the approval line, but only if every command of that plan's phase gate exited 0; otherwise the fields stay as they are and the SUMMARY names the failing command. It never marks a Manual-Only item as verified (ROADMAP criteria 2 and 4 stay 'pending human confirmation'). `/gsd-validate-phase` may re-audit the file afterwards.
 
