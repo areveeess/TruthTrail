@@ -14,9 +14,23 @@ from typing import Any
 
 import pytest
 import responses
+from hypothesis import HealthCheck, settings
 
 from truthtrail.core.boot import BootSettings
 from truthtrail.core.config import Settings, get_settings
+
+# Hypothesis profiles (D-15): "ci" is deterministic and database-free; "dev" is lighter.
+# Select with --hypothesis-profile=ci or the HYPOTHESIS_PROFILE environment variable.
+settings.register_profile(
+    "ci",
+    max_examples=200,
+    derandomize=True,
+    database=None,
+    deadline=None,
+    suppress_health_check=[HealthCheck.too_slow],
+)
+settings.register_profile("dev", max_examples=50, deadline=None)
+settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "dev"))
 
 # Names the module that owns the route-level callables load_demo_fixture,
 # FIXTURE_PATH and analyze_risk, for string patch targets (the create_app split
