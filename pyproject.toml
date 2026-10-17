@@ -1,0 +1,54 @@
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14"]
+build-backend = "uv_build"
+
+[project]
+name = "truthtrail"
+version = "0.1.0"
+description = "Misinformation early-warning service: flag for human review."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "fastapi==0.143.0",
+    "starlette==1.8.0",
+    "pydantic==2.14.0",
+    "pydantic-settings==2.15.0",
+    "uvicorn==0.54.0",
+    "requests==2.34.2",
+    "slowapi==0.1.10",
+    "limits==5.8.0",
+    "cachetools==7.2.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "hypothesis==6.170.1",
+    "responses==0.26.3",
+    "httpx==0.28.1",
+    "pyyaml==6.0.3",
+    "ruff==0.17.1",
+    "mypy==2.4.0",
+    "pip-audit==2.10.1",
+]
+# Unused until Phase 4 (model training); present in uv.lock, absent from `uv sync`.
+train = [
+    "scikit-learn==1.9.1",
+    "numpy==2.5.4",
+]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.pytest.ini_options]
+# legacy holds the flat modules (`from users import USERS`); the repo root holds the main.py shim.
+pythonpath = ["legacy", "."]
+testpaths = ["tests"]
+xfail_strict = true
+addopts = "-ra"
+# Warnings are errors. This is stable because the transitive closure is pinned by uv.lock, so a
+# third-party warning cannot appear without a deliberate lock change.
+filterwarnings = [
+    "error",
+    "ignore:Using .httpx. with .starlette.testclient. is deprecated",
+]
