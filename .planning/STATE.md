@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 2
 current_phase_name: Engineering Baseline
-current_plan: 5
+current_plan: 6
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-10-17T18:22:17.113Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-10-17T18:32:15.178Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 2 plans verified by plan checker; owner review pending
-state_head: 79cb23fa25cf2b6223a908768a8c4666152ef798
+state_head: c30f5ed69732bae1f499edf889bf4760adbc08e1
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 18
-  completed_plans: 10
+  completed_plans: 11
 milestone_name: Lean MVP
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 2 — Engineering Baseline
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 12
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 1 complete, transitioned to Phase 2
@@ -69,6 +69,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 2 P02 | 30min | 3 tasks | 28 files |
 | Phase 2 P03 | 25min | 2 tasks | 11 files |
 | Phase 2 P04 | 20min | 3 tasks | 36 files |
+| Phase 02 P05 | 25min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-06: copy guard skips OpenAPI identifier keys only for string leaves so a property named type cannot hide its description
 - [Phase 02]: 02-01: ENG-01 stays Pending until plan 02-02 performs the package move; 02-01 only freezes line endings, the Phase 1 OpenAPI golden snapshot and content hashes
 - [Phase 02]: 02-01: byte-identical for legacy files means identical after CR+LF to LF; Phase 1 raw git diff gate now returns 1 by design, replaced by --ignore-cr-at-eol
+- [Phase 02]: 02-05: Generic Exception handler removed; CatchAllMiddleware inside CORS renders the identical 500 problem+json so error responses carry CORS headers
+- [Phase 02]: 02-05: CORS_ORIGINS must be exact scheme://host[:port]; unset means no cross-origin access; invalid value fails create_app() with a ConfigurationError that omits the value
 
 ### Pending Todos
 
@@ -118,8 +121,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-17T18:22:17.044Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-10-17T18:32:15.085Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
