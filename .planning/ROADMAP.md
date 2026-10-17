@@ -68,7 +68,7 @@ Plans:
   4. `docker build` succeeds and the running container answers `/health` with 200, while `/ready` returns 503 whenever a registered dependency check fails (proved by a test with an injected failing check); the database check lands in Phase 3 and the model-artifact check in Phase 4.
   5. CORS accepts only configured origins, requests over the rate limit receive 429, repeated reads are served from a TTL cache, and outbound HTTP uses timeouts and bounded retries (each proven by a test, including a mocked slow or failing upstream that stops after the retry bound).
 
-**Plans**: 5/12 plans executed
+**Plans**: 6/12 plans executed
 
 Plans:
 **Wave 1**
@@ -87,7 +87,7 @@ Plans:
 - [x] 02-05-PLAN.md — Wave 5: create_app() factory, BootSettings, configured-origin CORS, catch-all inside CORS, Problem.synthetic Literal[False] (ENG-06)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 02-06-PLAN.md — Wave 6: /health and /ready with a fail-closed readiness registry (503 proved by an injected failing check) (ENG-05)
+- [x] 02-06-PLAN.md — Wave 6: /health and /ready with a fail-closed readiness registry (503 proved by an injected failing check) (ENG-05)
 
 **Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 02-07-PLAN.md — Wave 7: per-IP rate limit and 429 problem+json, /v1 LimitedRouter mount with probe-route proof, trusted-proxy switch (ENG-06)
@@ -190,7 +190,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 (Phases 3 and 4 may 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure & Honest Foundation | 6/6 | Complete    | 2026-10-17 |
-| 2. Engineering Baseline | 5/12 | In Progress | - |
+| 2. Engineering Baseline | 6/12 | In Progress | - |
 | 3. Real Propagation Data | 0/TBD | Not started | - |
 | 4. Baseline Detection & Evaluation | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
