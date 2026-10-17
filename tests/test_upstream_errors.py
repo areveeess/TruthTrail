@@ -9,8 +9,8 @@ import logging
 import pytest
 import requests
 
-import gnews_fetcher
-from problems import UpstreamError
+from truthtrail.core.errors import UpstreamError
+from truthtrail.services import gnews as gnews_fetcher
 
 
 def test_gnews_401_returns_502_not_200(
@@ -313,7 +313,7 @@ def test_no_key_or_url_in_logs(
     with pytest.raises(UpstreamError):
         gnews_fetcher.fetch_news("x", fake_key)
 
-    adapter_records = [r for r in caplog.records if r.name == "gnews_fetcher"]
+    adapter_records = [r for r in caplog.records if r.name == "truthtrail.services.gnews"]
     messages = [r.getMessage() for r in adapter_records]
     key_in_logs = fake_key in caplog.text
     url_in_messages = any("http" in m or "gnews.io" in m for m in messages)

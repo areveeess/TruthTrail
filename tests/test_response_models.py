@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import pytest
 from pydantic import ValidationError
 
-from models import AnalyzeResponse, DemoResult, Event, LiveResult, Meta, Problem
+from truthtrail.schemas.models import AnalyzeResponse, DemoResult, Event, LiveResult, Meta, Problem
 
 RESULT = {
     "headline": "Example Town council statement (synthetic demo)",

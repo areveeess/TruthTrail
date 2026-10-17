@@ -15,12 +15,12 @@ from typing import Any, Optional
 import pytest
 import responses
 
-from config import Settings, get_settings
+from truthtrail.core.config import Settings, get_settings
 
 # Names the module that owns the route-level callables load_demo_fixture,
 # FIXTURE_PATH and analyze_risk, for string patch targets. Plan 02-02 (package
 # move) and plan 02-05 (create_app refactor) each change this single line.
-APP_MODULE = "main"
+APP_MODULE = "truthtrail.main"
 FAKE_KEY = "FAKE_TEST_KEY"
 GNEWS_URL = "https://gnews.io/api/v4/search"
 ENV_NAMES = (
@@ -68,7 +68,7 @@ def client_factory(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Any]:
         demo_mode: Optional[str] = None,
         raise_server_exceptions: bool = False,
     ) -> Any:
-        import main
+        import truthtrail.main as main
         from fastapi.testclient import TestClient
 
         if gnews_api_key is not None:

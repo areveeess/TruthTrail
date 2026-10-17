@@ -2,7 +2,7 @@
 
 Usage (from the repository root):
 
-    python scripts/generate_demo_fixture.py            # (re)write fixtures/demo_analyze.json
+    python scripts/generate_demo_fixture.py            # (re)write src/truthtrail/data/demo_analyze.json
     python scripts/generate_demo_fixture.py --check    # exit 1 if the file is stale or hand-edited
     python scripts/generate_demo_fixture.py --path X   # use another file (with or without --check)
 
@@ -25,16 +25,18 @@ from typing import Optional
 from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+for _path in (REPO_ROOT / "legacy", REPO_ROOT / "src"):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
 
 import spread_simulator  # noqa: E402
-from models import AnalyzeResponse  # noqa: E402
-from risk_analyzer import analyze_risk  # noqa: E402
 from spread_simulator import create_root_event, simulate_spread  # noqa: E402
 
+from truthtrail.schemas.models import AnalyzeResponse  # noqa: E402
+from truthtrail.services.keyword_baseline import analyze_risk  # noqa: E402
+
 SEED = 20261011
-FIXTURE_PATH = REPO_ROOT / "fixtures" / "demo_analyze.json"
+FIXTURE_PATH = REPO_ROOT / "src" / "truthtrail" / "data" / "demo_analyze.json"
 FIXTURE_DATA_AS_OF = "2026-10-11T12:00:00Z"
 TIME_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -156,7 +158,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 1
 
     args.path.parent.mkdir(parents=True, exist_ok=True)
-    args.path.write_text(rendered, encoding="utf-8")
+    args.path.write_text(rendered, encoding="utf-8", newline="\n")
     sys.stdout.write("wrote demo fixture\n")
     return 0
 

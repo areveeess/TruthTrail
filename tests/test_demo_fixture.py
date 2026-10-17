@@ -14,10 +14,10 @@ from types import ModuleType
 
 import pytest
 
-from models import AnalyzeResponse, DemoResult
+from truthtrail.schemas.models import AnalyzeResponse, DemoResult
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-FIXTURE_FILE = REPO_ROOT / "fixtures" / "demo_analyze.json"
+FIXTURE_FILE = REPO_ROOT / "src" / "truthtrail" / "data" / "demo_analyze.json"
 UTC_Z = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
@@ -43,7 +43,7 @@ def test_fixture_covers_each_risk_label() -> None:
 
 
 def test_fixture_risk_matches_keyword_baseline() -> None:
-    from risk_analyzer import analyze_risk
+    from truthtrail.services.keyword_baseline import analyze_risk
 
     for result in load_fixture().results:
         assert result.risk == analyze_risk(result.headline)

@@ -16,11 +16,11 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 LEGACY_FILES = {
-    "risk_analyzer.py": "7398c2cfd920b56d971324935956a1342159eef0b808da53b95ed91fab46f23a",
-    "spread_simulator.py": "e8e61cde19601bfe99311df21fc79ec95ce49ba0f62fdace663c4033a53e362c",
-    "users.py": "e222249346536212bc1e3d2c7beab00202f647023f9ecbc28bb9797d7a0abfae",
+    "src/truthtrail/services/keyword_baseline.py": "7398c2cfd920b56d971324935956a1342159eef0b808da53b95ed91fab46f23a",
+    "legacy/spread_simulator.py": "e8e61cde19601bfe99311df21fc79ec95ce49ba0f62fdace663c4033a53e362c",
+    "legacy/users.py": "e222249346536212bc1e3d2c7beab00202f647023f9ecbc28bb9797d7a0abfae",
 }
-FIXTURE_FILE = "fixtures/demo_analyze.json"
+FIXTURE_FILE = "src/truthtrail/data/demo_analyze.json"
 FIXTURE_SHA256 = "f47fc6926acf3ba976ef28db7d6382f1fcf2da28fad4f493e01fbdb7023f7ec2"
 
 

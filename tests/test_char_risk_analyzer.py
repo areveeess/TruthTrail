@@ -7,7 +7,7 @@ the fixing commit removes the marker.
 
 import pytest
 
-from risk_analyzer import analyze_risk
+from truthtrail.services.keyword_baseline import analyze_risk
 
 
 @pytest.mark.parametrize(

@@ -7,11 +7,11 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import StringConstraints
-from config import Settings, get_settings
-from gnews_fetcher import fetch_news
-from models import AnalyzeResponse, LiveResult, Meta
-from problems import PROBLEM_RESPONSES, register_problem_handlers
-from risk_analyzer import analyze_risk
+from truthtrail.api.problems import PROBLEM_RESPONSES, register_problem_handlers
+from truthtrail.core.config import Settings, get_settings
+from truthtrail.schemas.models import AnalyzeResponse, LiveResult, Meta
+from truthtrail.services.gnews import fetch_news
+from truthtrail.services.keyword_baseline import analyze_risk
 
 
 @asynccontextmanager
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
 SearchQuery = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200, pattern=r"^[^\x00-\x1f\x7f-\x9f\u2028\u2029]+$")]
 
 # Never a CWD-relative path: the fixture is found from this file wherever the app starts.
-FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "demo_analyze.json"
+FIXTURE_PATH = Path(__file__).resolve().parent / "data" / "demo_analyze.json"
 
 
 @lru_cache(maxsize=1)

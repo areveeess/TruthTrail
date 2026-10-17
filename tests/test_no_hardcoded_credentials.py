@@ -89,10 +89,10 @@ def test_env_example_lists_names_only() -> None:
         ("data/sample.json", True),
         ("__pycache__/x.cpython-313.pyc", True),
         (".venv/bin/python", True),
-        ("fixtures/demo_analyze.json", False),
+        ("src/truthtrail/data/demo_analyze.json", False),
         ("scripts/copy_guard.py", False),
         ("tests/test_settings.py", False),
-        ("models.py", False),
+        ("src/truthtrail/schemas/models.py", False),
     ],
 )
 def test_gitignore_semantics(path: str, ignored: bool) -> None:

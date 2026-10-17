@@ -27,8 +27,9 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
+for _path in (REPO_ROOT, REPO_ROOT / "src"):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
 
 ALLOW_MARKER = "copy-guard: allow"
 
@@ -185,7 +186,7 @@ def _scan(root: Path, include_openapi: bool) -> tuple[list[Finding], int, int]:
 
     strings = 0
     if include_openapi:
-        import main as app_module  # lazy: needs the repo root on sys.path and builds the app
+        import truthtrail.main as app_module  # lazy: needs src on sys.path and builds the app
 
         spec = app_module.app.openapi()
         strings = sum(1 for _ in openapi_strings(spec))

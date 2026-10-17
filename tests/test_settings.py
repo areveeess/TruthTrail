@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from config import ConfigurationError, get_settings
+from truthtrail.core.config import ConfigurationError, get_settings
 
 # Low-entropy marker values: they must never appear in any error, repr or output.
 DATABASE_URL_MARKER = "postgresql://user:not-a-real-password@localhost:5432/truthtrail"
@@ -122,7 +122,7 @@ def test_uvicorn_exits_on_missing_key(tmp_path: Path) -> None:
     repo_root = Path(__file__).resolve().parent.parent
     env = {
         "PATH": os.environ.get("PATH", ""),
-        "PYTHONPATH": str(repo_root),
+        "PYTHONPATH": os.pathsep.join([str(repo_root), str(repo_root / "src")]),
         "PYTHONDONTWRITEBYTECODE": "1",
         "DATABASE_URL": DATABASE_URL_MARKER,
     }
@@ -218,7 +218,7 @@ def test_malformed_key_without_lifespan_is_500_not_configured(
 
 @pytest.mark.parametrize("bad_key", [*TRIMMABLE_KEYS, *BAD_KEYS])
 def test_fetcher_never_sends_a_malformed_key(mock_gnews: Any, gnews_url: str, gnews_payload: Any, bad_key: str) -> None:
-    import gnews_fetcher
+    from truthtrail.services import gnews as gnews_fetcher
 
     mock_gnews.get(gnews_url, json=gnews_payload())
 

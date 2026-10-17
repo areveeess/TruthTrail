@@ -1,7 +1,7 @@
 """GNews provider adapter: fetches the most recent matching headline (``max=1``) for a search query.
 
 Every upstream outcome is classified into a typed ``UpstreamError`` (see
-``problems.py``) so the API answers 502/503 instead of a fabricated 200. No raised
+``core/errors.py``) so the API answers 502/503 instead of a fabricated 200. No raised
 error, log record or message ever carries the credential, the provider host or a
 URL.
 """
@@ -19,8 +19,8 @@ from pydantic import (
     ValidationError,
 )
 
-from config import ConfigurationError, is_header_safe_key
-from problems import UpstreamError
+from truthtrail.core.config import ConfigurationError, is_header_safe_key
+from truthtrail.core.errors import UpstreamError
 
 logger = logging.getLogger(__name__)
 

@@ -14,7 +14,7 @@ import pytest
 import requests
 
 PROBLEM = "application/problem+json"
-FIXTURE_FILE = Path(__file__).resolve().parent.parent / "fixtures" / "demo_analyze.json"
+FIXTURE_FILE = Path(__file__).resolve().parent.parent / "src" / "truthtrail" / "data" / "demo_analyze.json"
 DATA_AS_OF_FORMAT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 

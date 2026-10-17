@@ -7,7 +7,7 @@ assert expression or message.
 import pytest
 import responses
 
-from models import AnalyzeResponse, Problem
+from truthtrail.schemas.models import AnalyzeResponse, Problem
 
 HTTP_METHODS = {"get", "put", "post", "delete", "patch", "options", "head"}
 PROBLEM = "application/problem+json"
