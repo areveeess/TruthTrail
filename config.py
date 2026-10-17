@@ -18,8 +18,9 @@ class ConfigurationError(RuntimeError):
 
 
 # An API key travels in an HTTP header: printable ASCII only, no whitespace of any kind.
-# Leading/trailing whitespace (a pasted newline) and non-latin-1 characters would otherwise
-# make `requests` fail at send time with an error that looks like a provider outage.
+# Settings trims surrounding whitespace first (a pasted newline or space); whitespace inside
+# the key and non-ASCII characters would otherwise make `requests` fail at send time with an
+# error that looks like a provider outage, so they are rejected at configuration time.
 _HEADER_SAFE_KEY = re.compile(r"[\x21-\x7e]+")
 
 
@@ -47,17 +48,19 @@ class Settings(BaseSettings):
     @field_validator("gnews_api_key", mode="before")
     @classmethod
     def _blank_key_is_missing(cls, value: Any) -> Any:
-        """Treat a blank key as not configured; reject a key that cannot be an HTTP header value.
+        """Trim surrounding whitespace; treat a blank key as not configured; reject the rest if unsafe.
 
-        The message never contains the value.
+        A key that still cannot be an HTTP header value after trimming (whitespace inside it,
+        non-ASCII characters) is rejected. The message never contains the value.
         """
         if isinstance(value, str):
-            if not value.strip():
+            value = value.strip()
+            if not value:
                 return None
             if not is_header_safe_key(value):
                 raise ValueError(
                     "GNEWS_API_KEY must be printable ASCII without spaces or line breaks "
-                    "(check for a pasted newline or stray whitespace)"
+                    "inside the key"
                 )
         return value
 

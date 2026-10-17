@@ -146,12 +146,18 @@ def test_uvicorn_exits_on_missing_key(tmp_path: Path) -> None:
     assert "not-a-real" not in output
 
 
-# A pasted newline or stray space, an embedded control character, and non-ASCII text
-# (non-latin-1 and latin-1 alike) can never be a header value.
-BAD_KEYS = [
+# Surrounding whitespace (a pasted newline or space) is trimmed by Settings (owner decision, UAT test 3).
+TRIMMABLE_KEYS = [
     pytest.param("FAKE_TEST_KEY\n", id="trailing-newline"),
+    pytest.param("FAKE_TEST_KEY\r\n", id="trailing-crlf"),
     pytest.param(" FAKE_TEST_KEY", id="leading-space"),
     pytest.param("FAKE_TEST_KEY ", id="trailing-space"),
+    pytest.param("\tFAKE_TEST_KEY\t", id="surrounding-tabs"),
+]
+
+# Whitespace inside the key, an embedded control character, and non-ASCII text
+# (non-latin-1 and latin-1 alike) can never be a header value, even after trimming.
+BAD_KEYS = [
     pytest.param("FAKE_TEST\nKEY", id="embedded-newline"),
     pytest.param("FAKE\tTEST", id="embedded-tab"),
     pytest.param("FAKE TEST", id="embedded-space"),
@@ -210,7 +216,7 @@ def test_malformed_key_without_lifespan_is_500_not_configured(
     assert len(mock_gnews.calls) == 0
 
 
-@pytest.mark.parametrize("bad_key", BAD_KEYS)
+@pytest.mark.parametrize("bad_key", [*TRIMMABLE_KEYS, *BAD_KEYS])
 def test_fetcher_never_sends_a_malformed_key(mock_gnews: Any, gnews_url: str, gnews_payload: Any, bad_key: str) -> None:
     import gnews_fetcher
 
@@ -222,3 +228,28 @@ def test_fetcher_never_sends_a_malformed_key(mock_gnews: Any, gnews_url: str, gn
     leaked = "FAKE_TEST" in str(excinfo.value)
     assert not leaked
     assert len(mock_gnews.calls) == 0
+
+
+@pytest.mark.parametrize("padded_key", TRIMMABLE_KEYS)
+def test_surrounding_whitespace_is_trimmed(monkeypatch: pytest.MonkeyPatch, padded_key: str) -> None:
+    monkeypatch.setenv("GNEWS_API_KEY", padded_key)
+    get_settings.cache_clear()
+
+    settings = get_settings()
+
+    assert settings.gnews_api_key is not None
+    assert settings.gnews_api_key.get_secret_value() == "FAKE_TEST_KEY"
+
+
+@pytest.mark.parametrize("padded_key", TRIMMABLE_KEYS)
+def test_trimmed_key_reaches_the_provider_exactly(
+    client_factory: Any, mock_gnews: Any, gnews_url: str, gnews_payload: Any, padded_key: str
+) -> None:
+    mock_gnews.get(gnews_url, json=gnews_payload())
+
+    with client_factory(gnews_api_key=padded_key) as client:
+        response = client.get("/analyze", params={"query": "x"})
+
+    sent = mock_gnews.calls[0].request.headers["X-Api-Key"]
+    assert response.status_code == 200
+    assert sent == "FAKE_TEST_KEY"
