@@ -9,7 +9,8 @@ import re
 from functools import lru_cache
 from typing import Any
 
-from pydantic import SecretStr, ValidationError, field_validator, model_validator
+from limits import parse_many
+from pydantic import SecretStr, ValidationError, ValidationInfo, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,6 +45,20 @@ class Settings(BaseSettings):
     bluesky_handle: str | None = None
     bluesky_app_password: SecretStr | None = None
     database_url: SecretStr | None = None
+    # Per-client-IP limits, "N/minute" style. Read per request (callable limits), validated here.
+    rate_limit_analyze: str = "10/minute"
+    rate_limit_v1: str = "60/minute"
+
+    @field_validator("rate_limit_analyze", "rate_limit_v1")
+    @classmethod
+    def _valid_rate_limit(cls, value: str, info: ValidationInfo) -> str:
+        """Reject a rate limit string the limiter cannot parse; name the variable, not the value."""
+        try:
+            parse_many(value)
+        except ValueError:
+            name = (info.field_name or "rate limit").upper()
+            raise ValueError(f"{name} is not a valid rate limit") from None
+        return value
 
     @field_validator("gnews_api_key", mode="before")
     @classmethod

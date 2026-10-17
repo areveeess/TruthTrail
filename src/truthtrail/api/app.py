@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from truthtrail.api.analyze import build_analyze_router
 from truthtrail.api.catchall import CatchAllMiddleware
 from truthtrail.api.health import build_health_router
+from truthtrail.api.limits import build_limiter
 from truthtrail.api.problems import register_problem_handlers
 from truthtrail.core.boot import get_boot_settings
 from truthtrail.core.config import get_settings
@@ -57,7 +58,10 @@ def create_app() -> FastAPI:
     app.state.readiness = registry
     register_default_checks(registry)
     app.include_router(build_health_router())
-    app.include_router(build_analyze_router())
+    # Decorator-only limiting (D-23): no SlowAPIMiddleware, no default_limits.
+    limiter = build_limiter()
+    app.state.limiter = limiter
+    app.include_router(build_analyze_router(limiter))
     boot = get_boot_settings()
     # Ordering rule: the LAST middleware added is the OUTERMOST. The catch-all is added first
     # so it sits just inside CORSMiddleware; an unexpected error is then rendered as a 500

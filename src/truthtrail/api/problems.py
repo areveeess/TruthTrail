@@ -11,12 +11,15 @@ outermost ServerErrorMiddleware, outside CORS, so its 500 would carry no CORS he
 """
 
 import logging
+import math
+import time
 from collections.abc import Callable
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from truthtrail.core.config import ConfigurationError
@@ -58,6 +61,15 @@ PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
             }
         },
     ),
+    429: _problem_declaration(
+        "Too many requests from this client; see Retry-After (problem details).",
+        headers={
+            "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {"type": "integer"},
+            }
+        },
+    ),
 }
 
 
@@ -79,6 +91,20 @@ async def _upstream_error_handler(request: Request, exc: UpstreamError) -> JSONR
     )
     headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
     return problem_response(exc.status, body, headers)
+
+
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    """Render a 429 with a Retry-After computed from the limiter's window (D-23).
+
+    The wait is the time until the window of the limit that was hit resets, at least one
+    second. The body never contains the client address or the limit key.
+    """
+    limiter = request.app.state.limiter
+    item, args = request.state.view_rate_limit
+    reset_at, _remaining = limiter.limiter.get_window_stats(item, *args)
+    retry = max(1, math.ceil(reset_at - time.time()))
+    body = problem_body(429, "Rate limit exceeded.", "rate_limited", source_status="rate_limited")
+    return problem_response(429, body, {"Retry-After": str(retry)})
 
 
 async def _validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -128,7 +154,10 @@ def _problem_only_openapi(app: FastAPI) -> Callable[[], dict[str, Any]]:
             for operation in item.values():
                 for code, response in operation.get("responses", {}).items():
                     content = response.get("content", {})
-                    if code in {"422", "500", "502", "503"} and PROBLEM_MEDIA_TYPE in content:
+                    if (
+                        code in {"422", "429", "500", "502", "503"}
+                        and PROBLEM_MEDIA_TYPE in content
+                    ):
                         content.pop("application/json", None)
         return schema
 
@@ -141,6 +170,9 @@ def register_problem_handlers(app: FastAPI) -> None:
     # Decorator form: ``add_exception_handler`` is typed for ``Exception`` handlers only (variance),
     # ``exception_handler`` is not. The registration order is behaviour: keep it.
     app.exception_handler(UpstreamError)(_upstream_error_handler)
+    # RateLimitExceeded is an HTTPException subclass; Starlette picks the handler by class
+    # MRO, so this dedicated handler wins over the generic HTTP one below.
+    app.exception_handler(RateLimitExceeded)(_rate_limit_handler)
     app.exception_handler(RequestValidationError)(_validation_error_handler)
     app.exception_handler(StarletteHTTPException)(_http_exception_handler)
     app.exception_handler(ConfigurationError)(_configuration_error_handler)

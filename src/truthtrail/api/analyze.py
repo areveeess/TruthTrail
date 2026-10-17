@@ -9,8 +9,9 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import StringConstraints
+from slowapi import Limiter
 
 from truthtrail.api.problems import PROBLEM_RESPONSES
 from truthtrail.core.config import Settings, get_settings
@@ -48,8 +49,8 @@ def load_demo_fixture() -> AnalyzeResponse:
     return fixture
 
 
-def build_analyze_router() -> APIRouter:
-    """Return a new router carrying ``GET /analyze`` (one per app)."""
+def build_analyze_router(limiter: Limiter) -> APIRouter:
+    """Return a new router carrying ``GET /analyze`` (one per app), limited per client IP."""
     router = APIRouter()
 
     @router.get(
@@ -61,7 +62,9 @@ def build_analyze_router() -> APIRouter:
             "(flag for human review)"
         ),
     )
+    @limiter.limit(lambda: get_settings().rate_limit_analyze)
     def analyze(
+        request: Request,
         query: Annotated[
             SearchQuery,
             Query(
