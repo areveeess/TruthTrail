@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 2
 current_phase_name: Engineering Baseline
-current_plan: 8
+current_plan: 9
 status: executing
-stopped_at: Completed 02-07-PLAN.md
-last_updated: "2026-10-17T18:46:24.997Z"
+stopped_at: Completed 02-08-PLAN.md
+last_updated: "2026-10-17T18:54:00.000Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 2 plans verified by plan checker; owner review pending
-state_head: ed335cf3a778324ee3504ddd96915a77da9712f9
+state_head: db493a99629c430401f365380c876d113cf0e8d6
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 18
-  completed_plans: 12
+  completed_plans: 13
 milestone_name: Lean MVP
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 2 — Engineering Baseline
-Current Plan: 8
+Current Plan: 9
 Total Plans in Phase: 12
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 1 complete, transitioned to Phase 2
@@ -72,6 +72,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 02 P05 | 25min | 2 tasks | 14 files |
 | Phase 02 P06 | 15min | 2 tasks | 7 files |
 | Phase 02 P07 | 30min | 2 tasks | 15 files |
+| Phase 02 P08 | 10min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-05: CORS_ORIGINS must be exact scheme://host[:port]; unset means no cross-origin access; invalid value fails create_app() with a ConfigurationError that omits the value
 - [Phase 02]: 02-06: /ready names only failed check names in the problem detail and sends no Retry-After; registry on app.state.readiness with register_default_checks hook
 - [Phase 02]: 02-07: slowapi used through decorators only; LimitedRouter makes /v1 limits fail closed; server always started with --no-proxy-headers so TRUST_PROXY_HEADERS/FORWARDED_ALLOW_IPS are the only proxy-trust switches (real-uvicorn negative control proves the default hole)
+- [Phase 02]: 02-08: /analyze TTL cache (600 s, 256 entries, key = trimmed casefolded query + demo flag) on app.state.analyze_cache; every access locked, fetch outside the lock, successes only, X-Cache hit/miss undocumented in OpenAPI, limit applies before the cache
 
 ### Pending Todos
 
@@ -125,8 +127,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-17T18:46:24.922Z
-Stopped at: Completed 02-07-PLAN.md
+Last session: 2026-10-17T18:54:00.000Z
+Stopped at: Completed 02-08-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
