@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 import responses
 
+from truthtrail.core.boot import BootSettings
 from truthtrail.core.config import Settings, get_settings
 
 # Names the module that owns the route-level callables load_demo_fixture,
@@ -29,6 +30,7 @@ ENV_NAMES = (
     "BLUESKY_HANDLE",
     "BLUESKY_APP_PASSWORD",
     "DATABASE_URL",
+    "CORS_ORIGINS",
 )
 
 
@@ -42,6 +44,7 @@ def network_guard(monkeypatch: pytest.MonkeyPatch) -> Iterator[responses.Request
     for name in ENV_NAMES:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setitem(Settings.model_config, "env_file", None)
+    monkeypatch.setitem(BootSettings.model_config, "env_file", None)
     get_settings.cache_clear()
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rs:
         yield rs

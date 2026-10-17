@@ -12,7 +12,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from truthtrail.api.analyze import build_analyze_router
+from truthtrail.api.catchall import CatchAllMiddleware
 from truthtrail.api.problems import register_problem_handlers
+from truthtrail.core.boot import get_boot_settings
 from truthtrail.core.config import get_settings
 
 APP_DESCRIPTION = (
@@ -42,7 +44,15 @@ def create_app() -> FastAPI:
     )
     register_problem_handlers(app)
     app.include_router(build_analyze_router())
+    boot = get_boot_settings()
+    # Ordering rule: the LAST middleware added is the OUTERMOST. The catch-all is added first
+    # so it sits just inside CORSMiddleware; an unexpected error is then rendered as a 500
+    # problem+json before the response passes back out through CORS and gains its headers.
+    app.add_middleware(CatchAllMiddleware)
     app.add_middleware(
-        CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
+        CORSMiddleware,
+        allow_origins=boot.cors_origins,
+        allow_methods=["GET", "HEAD", "OPTIONS"],
+        allow_credentials=False,
     )
     return app

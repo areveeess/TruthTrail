@@ -4,6 +4,10 @@ The body shape, ``UpstreamError`` and the rendering helpers live in
 ``truthtrail.core.errors`` so services never import from this layer. Nothing here
 puts a credential, a provider URL, a query string or an exception message into a
 body or a log line.
+
+There is deliberately no handler for ``Exception``: it would render in Starlette's
+outermost ServerErrorMiddleware, outside CORS, so its 500 would carry no CORS headers.
+``truthtrail.api.catchall.CatchAllMiddleware`` renders unexpected errors instead.
 """
 
 import logging
@@ -103,13 +107,6 @@ async def _configuration_error_handler(request: Request, exc: ConfigurationError
     return problem_response(500, body)
 
 
-async def _unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Render any other failure with a generic detail; only the class name is logged."""
-    logger.error("unexpected error: %s", type(exc).__name__)
-    body = problem_body(500, "Unexpected error.", "internal_error", source_status="error")
-    return problem_response(500, body)
-
-
 def _problem_only_openapi(app: FastAPI) -> Callable[[], dict[str, Any]]:
     """Wrap ``app.openapi`` so declared errors list only application/problem+json.
 
@@ -140,4 +137,3 @@ def register_problem_handlers(app: FastAPI) -> None:
     app.exception_handler(RequestValidationError)(_validation_error_handler)
     app.exception_handler(StarletteHTTPException)(_http_exception_handler)
     app.exception_handler(ConfigurationError)(_configuration_error_handler)
-    app.exception_handler(Exception)(_unexpected_error_handler)
