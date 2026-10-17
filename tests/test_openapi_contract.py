@@ -157,5 +157,9 @@ def test_description_matches_what_the_endpoint_does(
     assert "Nothing is ranked" in description
     assert "most recent matching headline" in summary
     # Any positive ranking claim would be false: nothing is sorted, and one article cannot be ordered.
-    positive_claims = [w for w in ("Ranks ", "ranks ", "Ranking ", "prioritised list") if w in description + summary]
+    positive_claims = [
+        w
+        for w in ("Ranks ", "ranks ", "Ranking ", "prioritised list")
+        if w in description + summary
+    ]
     assert positive_claims == []

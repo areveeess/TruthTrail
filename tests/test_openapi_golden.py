@@ -47,7 +47,9 @@ def phase1_view(current: dict[str, Any], base: dict[str, Any]) -> dict[str, Any]
         if name in base_schemas
     }
     # Declared amendment D-20: Problem.synthetic becomes Literal[False].
-    synthetic = view["components"]["schemas"].get("Problem", {}).get("properties", {}).get("synthetic")
+    synthetic = (
+        view["components"]["schemas"].get("Problem", {}).get("properties", {}).get("synthetic")
+    )
     if isinstance(synthetic, dict):
         synthetic.pop("const", None)
     return view
@@ -72,7 +74,9 @@ def test_only_declared_additions_exist(client: Any) -> None:
     current = client.get("/openapi.json").json()
     base = load_golden()
     new_paths = set(current["paths"]) - set(base["paths"])
-    assert new_paths <= ALLOWED_NEW_PATHS, f"undeclared paths: {sorted(new_paths - ALLOWED_NEW_PATHS)}"
+    assert new_paths <= ALLOWED_NEW_PATHS, (
+        f"undeclared paths: {sorted(new_paths - ALLOWED_NEW_PATHS)}"
+    )
     for path, item in base["paths"].items():
         for method, operation in item.items():
             if method not in HTTP_METHODS:

@@ -88,7 +88,9 @@ def test_no_secrets_are_referenced() -> None:
 def test_gitleaks_job_is_intact() -> None:
     job = _jobs()["gitleaks"]
     assert job["env"]["RANGE_FLOOR"] == FLOOR
-    checkout = next(s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/checkout@"))
+    checkout = next(
+        s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/checkout@")
+    )
     assert checkout["with"]["fetch-depth"] == 0
     assert any("selftest" in str(s.get("name", "")).lower() for s in job["steps"])
     assert any("scripts/gitleaks_scan.sh" in str(s.get("run", "")) for s in job["steps"])

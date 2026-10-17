@@ -1,6 +1,6 @@
 """Contract tests for the response envelope and the RFC 9457 problem model."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -72,7 +72,7 @@ def test_meta_rejects_naive_datetime() -> None:
 def test_meta_serializes_utc_as_z() -> None:
     meta = Meta(
         synthetic=False,
-        data_as_of=datetime(2026, 10, 11, 10, 2, 11, tzinfo=timezone.utc),
+        data_as_of=datetime(2026, 10, 11, 10, 2, 11, tzinfo=UTC),
         source_status="ok",
     )
     assert meta.model_dump(mode="json")["data_as_of"] == "2026-10-11T10:02:11Z"

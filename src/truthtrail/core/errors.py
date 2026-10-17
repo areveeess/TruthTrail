@@ -10,7 +10,7 @@ message into a body or a log line.
 """
 
 from http import HTTPStatus
-from typing import Any, Optional
+from typing import Any
 
 from fastapi.responses import JSONResponse
 
@@ -30,7 +30,7 @@ class UpstreamError(Exception):
         status: int,
         code: str,
         detail: str,
-        retry_after: Optional[int] = None,
+        retry_after: int | None = None,
         upstream: str = "gnews",
     ) -> None:
         super().__init__(f"{upstream} {code}")
@@ -58,10 +58,6 @@ def problem_body(
     }
 
 
-def problem_response(
-    status: int, body: dict, headers: Optional[dict] = None
-) -> JSONResponse:
+def problem_response(status: int, body: dict, headers: dict | None = None) -> JSONResponse:
     """Render a problem body with the problem+json media type."""
-    return JSONResponse(
-        body, status_code=status, media_type=PROBLEM_MEDIA_TYPE, headers=headers
-    )
+    return JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE, headers=headers)

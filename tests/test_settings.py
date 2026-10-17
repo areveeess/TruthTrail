@@ -16,7 +16,12 @@ APP_PASSWORD_MARKER = "not-a-real-app-password"
 
 
 def test_key_sent_only_in_header(
-    client: Any, mock_gnews: Any, gnews_url: str, gnews_payload: Any, gnews_article: Any, fake_key: str
+    client: Any,
+    mock_gnews: Any,
+    gnews_url: str,
+    gnews_payload: Any,
+    gnews_article: Any,
+    fake_key: str,
 ) -> None:
     mock_gnews.get(gnews_url, json=gnews_payload(gnews_article()))
 
@@ -31,9 +36,8 @@ def test_key_sent_only_in_header(
 
 
 def test_missing_key_fails_fast_at_startup(client_factory: Any, mock_gnews: Any) -> None:
-    with pytest.raises(ConfigurationError) as excinfo:
-        with client_factory(gnews_api_key=None):
-            pass
+    with pytest.raises(ConfigurationError) as excinfo, client_factory(gnews_api_key=None):
+        pass
 
     message = str(excinfo.value)
     assert "GNEWS_API_KEY" in message
@@ -60,7 +64,9 @@ def test_demo_mode_starts_without_key(client_factory: Any, mock_gnews: Any) -> N
         ("no", False),
     ],
 )
-def test_demo_mode_parsing(monkeypatch: pytest.MonkeyPatch, fake_key: str, raw: str, expected: bool) -> None:
+def test_demo_mode_parsing(
+    monkeypatch: pytest.MonkeyPatch, fake_key: str, raw: str, expected: bool
+) -> None:
     monkeypatch.setenv("GNEWS_API_KEY", fake_key)
     monkeypatch.setenv("DEMO_MODE", raw)
     get_settings.cache_clear()
@@ -188,9 +194,8 @@ def test_malformed_key_is_rejected_at_configuration_time(
 def test_malformed_key_fails_startup_without_calling_the_provider(
     client_factory: Any, mock_gnews: Any, bad_key: str
 ) -> None:
-    with pytest.raises(ConfigurationError) as excinfo:
-        with client_factory(gnews_api_key=bad_key):
-            pass
+    with pytest.raises(ConfigurationError) as excinfo, client_factory(gnews_api_key=bad_key):
+        pass
 
     leaked = "FAKE_TEST" in str(excinfo.value)
     assert not leaked
@@ -217,7 +222,9 @@ def test_malformed_key_without_lifespan_is_500_not_configured(
 
 
 @pytest.mark.parametrize("bad_key", [*TRIMMABLE_KEYS, *BAD_KEYS])
-def test_fetcher_never_sends_a_malformed_key(mock_gnews: Any, gnews_url: str, gnews_payload: Any, bad_key: str) -> None:
+def test_fetcher_never_sends_a_malformed_key(
+    mock_gnews: Any, gnews_url: str, gnews_payload: Any, bad_key: str
+) -> None:
     from truthtrail.services import gnews as gnews_fetcher
 
     mock_gnews.get(gnews_url, json=gnews_payload())
@@ -231,7 +238,9 @@ def test_fetcher_never_sends_a_malformed_key(mock_gnews: Any, gnews_url: str, gn
 
 
 @pytest.mark.parametrize("padded_key", TRIMMABLE_KEYS)
-def test_surrounding_whitespace_is_trimmed(monkeypatch: pytest.MonkeyPatch, padded_key: str) -> None:
+def test_surrounding_whitespace_is_trimmed(
+    monkeypatch: pytest.MonkeyPatch, padded_key: str
+) -> None:
     monkeypatch.setenv("GNEWS_API_KEY", padded_key)
     get_settings.cache_clear()
 

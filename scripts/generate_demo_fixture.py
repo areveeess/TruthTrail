@@ -19,9 +19,8 @@ import random
 import sys
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 from unittest import mock
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -72,8 +71,8 @@ def _parse_utc(value: str) -> datetime:
     """Parse a Z-suffixed or naive ISO timestamp, treating naive values as UTC."""
     parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.astimezone(timezone.utc)
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _monotone_utc(events: list[dict]) -> list[dict]:
@@ -135,11 +134,15 @@ def render(fixture: dict) -> str:
     return json.dumps(fixture, indent=2, ensure_ascii=False) + "\n"
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Write the fixture, or with --check compare it to the file on disk."""
     parser = argparse.ArgumentParser(description="Generate the synthetic demo fixture.")
-    parser.add_argument("--check", action="store_true", help="fail if the file differs from a fresh build")
-    parser.add_argument("--path", type=Path, default=FIXTURE_PATH, help="fixture file to write or check")
+    parser.add_argument(
+        "--check", action="store_true", help="fail if the file differs from a fresh build"
+    )
+    parser.add_argument(
+        "--path", type=Path, default=FIXTURE_PATH, help="fixture file to write or check"
+    )
     args = parser.parse_args(argv)
 
     rendered = render(build_fixture())

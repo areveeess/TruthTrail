@@ -7,14 +7,16 @@ assert expression or message.
 import importlib
 import json
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 import requests
 
 PROBLEM = "application/problem+json"
-FIXTURE_FILE = Path(__file__).resolve().parent.parent / "src" / "truthtrail" / "data" / "demo_analyze.json"
+FIXTURE_FILE = (
+    Path(__file__).resolve().parent.parent / "src" / "truthtrail" / "data" / "demo_analyze.json"
+)
 DATA_AS_OF_FORMAT = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
@@ -32,9 +34,7 @@ def _live_response(client, mock_gnews, gnews_url, gnews_payload, gnews_article):
     return client.get("/analyze", params={"query": "mayor"})
 
 
-def test_live_result_contract(
-    client, mock_gnews, gnews_url, gnews_payload, gnews_article
-) -> None:
+def test_live_result_contract(client, mock_gnews, gnews_url, gnews_payload, gnews_article) -> None:
     response = _live_response(client, mock_gnews, gnews_url, gnews_payload, gnews_article)
 
     assert response.status_code == 200
@@ -53,10 +53,8 @@ def test_live_result_contract(
     assert meta["synthetic"] is False
     assert meta["source_status"] == "ok"
     assert DATA_AS_OF_FORMAT.match(meta["data_as_of"])
-    data_as_of = datetime.strptime(meta["data_as_of"], "%Y-%m-%dT%H:%M:%SZ").replace(
-        tzinfo=timezone.utc
-    )
-    assert abs(datetime.now(timezone.utc) - data_as_of) < timedelta(seconds=60)
+    data_as_of = datetime.strptime(meta["data_as_of"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+    assert abs(datetime.now(UTC) - data_as_of) < timedelta(seconds=60)
     assert "2025-01-01" not in response.text
 
 

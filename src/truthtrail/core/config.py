@@ -7,7 +7,7 @@ missing or invalid configuration stops startup instead of failing a request.
 
 import re
 from functools import lru_cache
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import SecretStr, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,11 +39,11 @@ class Settings(BaseSettings):
         hide_input_in_errors=True,
     )
 
-    gnews_api_key: Optional[SecretStr] = None
+    gnews_api_key: SecretStr | None = None
     demo_mode: bool = False
-    bluesky_handle: Optional[str] = None
-    bluesky_app_password: Optional[SecretStr] = None
-    database_url: Optional[SecretStr] = None
+    bluesky_handle: str | None = None
+    bluesky_app_password: SecretStr | None = None
+    database_url: SecretStr | None = None
 
     @field_validator("gnews_api_key", mode="before")
     @classmethod
@@ -79,10 +79,8 @@ def get_settings() -> Settings:
         return Settings()
     except ValidationError as exc:
         problems = "; ".join(
-            f"{'.'.join(map(str, err['loc'])) or 'settings'}: {err['msg']}"
-            for err in exc.errors()
+            f"{'.'.join(map(str, err['loc'])) or 'settings'}: {err['msg']}" for err in exc.errors()
         )
         raise ConfigurationError(
-            f"Invalid configuration ({problems}). "
-            "Set the variables listed in .env.example."
+            f"Invalid configuration ({problems}). Set the variables listed in .env.example."
         ) from None

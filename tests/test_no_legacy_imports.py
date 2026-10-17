@@ -77,7 +77,9 @@ def _serving_env(subprocess_env: dict[str, str]) -> dict[str, str]:
     return {**subprocess_env, "PYTHONPATH": str(PACKAGE_ROOT.parent)}
 
 
-def test_importing_the_app_loads_no_legacy_module(tmp_path: Path, subprocess_env: dict[str, str]) -> None:
+def test_importing_the_app_loads_no_legacy_module(
+    tmp_path: Path, subprocess_env: dict[str, str]
+) -> None:
     code = (
         "import sys\n"
         "import truthtrail.main\n"

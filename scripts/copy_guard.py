@@ -38,7 +38,10 @@ ALLOW_MARKER = "copy-guard: allow"
 # not the prose word, and not FAKE_TEST_KEY (underscore is a word character).
 BANNED: list[tuple[str, re.Pattern[str]]] = [
     ("truth-claim", re.compile(r"\bdetect(s|ing|ion|or|ors)?\s+(of\s+)?(the\s+)?truth\b", re.I)),
-    ("fake-news-detector", re.compile(r"\bfake[\s-]+news\s+(detect\w*|classif\w*|identif\w*)\b", re.I)),
+    (
+        "fake-news-detector",
+        re.compile(r"\bfake[\s-]+news\s+(detect\w*|classif\w*|identif\w*)\b", re.I),
+    ),
     (
         "detects-misinformation",
         re.compile(
@@ -57,15 +60,22 @@ BANNED: list[tuple[str, re.Pattern[str]]] = [
     ),
     ("misinformation-detector", re.compile(r"\b(mis|dis)information\s+detect(or|ors|ion)\b", re.I)),
     # Reversed and adjacent forms of the same overclaims ("truth detection", "lie detector", ...).
-    ("truth-claim-rev", re.compile(r"\btruth[\s-]+(detect\w*|verif\w*|check\w*|find\w*|determin\w*)", re.I)),
+    (
+        "truth-claim-rev",
+        re.compile(r"\btruth[\s-]+(detect\w*|verif\w*|check\w*|find\w*|determin\w*)", re.I),
+    ),
     ("lie-detector", re.compile(r"\blie[\s-]+detect\w*", re.I)),
     (
         "fake-news-filter",
         re.compile(
-            r"\bfake[\s-]+news\s+(filter|finder|spotter|blocker|checker|catcher|scanner|buster)\w*", re.I
+            r"\bfake[\s-]+news\s+(filter|finder|spotter|blocker|checker|catcher|scanner|buster)\w*",
+            re.I,
         ),
     ),
-    ("misinformation-classifier", re.compile(r"\b(mis|dis)information\s+(classif|identif|filter)\w*", re.I)),
+    (
+        "misinformation-classifier",
+        re.compile(r"\b(mis|dis)information\s+(classif|identif|filter)\w*", re.I),
+    ),
     (
         "finds-fake-news",
         re.compile(
@@ -91,8 +101,23 @@ SCAN_GLOBS = (
     "ui/**/*",
 )
 TEXT_SUFFIXES = frozenset(
-    {".md", ".mdx", ".txt", ".rst", ".html", ".htm", ".json", ".js", ".jsx", ".ts", ".tsx",
-     ".vue", ".svelte", ".yml", ".yaml"}
+    {
+        ".md",
+        ".mdx",
+        ".txt",
+        ".rst",
+        ".html",
+        ".htm",
+        ".json",
+        ".js",
+        ".jsx",
+        ".ts",
+        ".tsx",
+        ".vue",
+        ".svelte",
+        ".yml",
+        ".yaml",
+    }
 )
 EXCLUDED_PREFIXES = ("tests/", ".planning/", "node_modules/", ".venv/")
 
@@ -120,7 +145,7 @@ def scan_text(text: str, source: str) -> list[Finding]:
             start = text.count("\n", 0, match.start()) + 1
             end = text.count("\n", 0, max(match.end() - 1, match.start())) + 1
             # 1-based lines start-1 (the line before) through end, as 0-based slice.
-            window = lines[max(start - 2, 0):end]
+            window = lines[max(start - 2, 0) : end]
             if any(ALLOW_MARKER in line for line in window):
                 continue
             excerpt = " ".join(match.group(0).split())[:80]
@@ -181,7 +206,12 @@ def _scan(root: Path, include_openapi: bool) -> tuple[list[Finding], int, int]:
         findings.append(Finding("README.md", 0, "missing-readme", "README.md is absent"))
     elif not REQUIRED_README.search(readme.read_text(encoding="utf-8", errors="replace")):
         findings.append(
-            Finding("README.md", 1, "missing-required-phrase", 'README must say "flag ... for human review"')
+            Finding(
+                "README.md",
+                1,
+                "missing-required-phrase",
+                'README must say "flag ... for human review"',
+            )
         )
 
     strings = 0
@@ -201,7 +231,9 @@ def scan_repo(root: Path, include_openapi: bool = True) -> list[Finding]:
 
 def main(argv: list[str] | None = None) -> int:
     """Run the guard; print findings as ``source:line: rule: excerpt``. Returns the exit code."""
-    parser = argparse.ArgumentParser(description="Fail on overclaiming copy in docs and API strings.")
+    parser = argparse.ArgumentParser(
+        description="Fail on overclaiming copy in docs and API strings."
+    )
     parser.add_argument("--root", type=Path, default=REPO_ROOT, help="repository root to scan")
     parser.add_argument("--no-openapi", action="store_true", help="skip the OpenAPI string walk")
     args = parser.parse_args(argv)

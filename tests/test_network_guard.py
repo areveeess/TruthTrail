@@ -4,7 +4,6 @@ import os
 
 import pytest
 import requests
-
 from conftest import ENV_NAMES
 
 
@@ -28,7 +27,5 @@ def test_mocked_gnews_reaches_real_handler(
     assert response.status_code == 200
     assert len(mock_gnews.calls) == 1
     call = mock_gnews.calls[0]
-    carries_fake = (
-        fake_key in call.request.url or call.request.headers.get("X-Api-Key") == fake_key
-    )
+    carries_fake = fake_key in call.request.url or call.request.headers.get("X-Api-Key") == fake_key
     assert carries_fake, "outbound request must carry only the fake test key"

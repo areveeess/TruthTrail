@@ -13,14 +13,10 @@ from truthtrail.core.errors import UpstreamError
 from truthtrail.services import gnews as gnews_fetcher
 
 
-def test_gnews_401_returns_502_not_200(
-    client, mock_gnews, gnews_url, fake_key, caplog
-) -> None:
+def test_gnews_401_returns_502_not_200(client, mock_gnews, gnews_url, fake_key, caplog) -> None:
     """D-07 / ROADMAP success criterion 2: a GNews 401 is a 502, never a 200."""
     caplog.set_level(logging.DEBUG)
-    mock_gnews.get(
-        gnews_url, json={"errors": ["Invalid credentials (simulated)"]}, status=401
-    )
+    mock_gnews.get(gnews_url, json={"errors": ["Invalid credentials (simulated)"]}, status=401)
 
     response = client.get("/analyze", params={"query": "x"})
 
@@ -125,34 +121,52 @@ FAILURE_CASES = [
     pytest.param(_status(503), *BAD_502, id="503"),
     pytest.param(
         _status(429, headers={"Retry-After": "7"}),
-        503, "upstream_rate_limited", "7",
+        503,
+        "upstream_rate_limited",
+        "7",
         id="429-retry-after-7",
     ),
     pytest.param(_status(429), 503, "upstream_rate_limited", "30", id="429-no-header"),
     pytest.param(
         _status(429, headers={"Retry-After": "99999"}),
-        503, "upstream_rate_limited", "3600",
+        503,
+        "upstream_rate_limited",
+        "3600",
         id="429-capped-at-3600",
     ),
     pytest.param(
         _status(429, headers={"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}),
-        503, "upstream_rate_limited", "30",
+        503,
+        "upstream_rate_limited",
+        "30",
         id="429-http-date",
     ),
     pytest.param(
-        _raises(requests.exceptions.ConnectTimeout), 503, "upstream_timeout", "30",
+        _raises(requests.exceptions.ConnectTimeout),
+        503,
+        "upstream_timeout",
+        "30",
         id="connect-timeout",
     ),
     pytest.param(
-        _raises(requests.exceptions.ReadTimeout), 503, "upstream_timeout", "30",
+        _raises(requests.exceptions.ReadTimeout),
+        503,
+        "upstream_timeout",
+        "30",
         id="read-timeout",
     ),
     pytest.param(
-        _raises(requests.exceptions.ConnectionError), 503, "upstream_unreachable", "30",
+        _raises(requests.exceptions.ConnectionError),
+        503,
+        "upstream_unreachable",
+        "30",
         id="connection-error",
     ),
     pytest.param(
-        _raises(requests.exceptions.SSLError), 503, "upstream_unreachable", "30",
+        _raises(requests.exceptions.SSLError),
+        503,
+        "upstream_unreachable",
+        "30",
         id="ssl-error",
     ),
     # Reached, but the answer was unusable: a bad upstream answer (502), not an outage (D-07).
@@ -162,23 +176,22 @@ FAILURE_CASES = [
     pytest.param(
         _raises(requests.exceptions.ContentDecodingError), *BAD_502, id="content-decoding-error"
     ),
-    pytest.param(
-        _raises(requests.exceptions.TooManyRedirects), *BAD_502, id="too-many-redirects"
-    ),
+    pytest.param(_raises(requests.exceptions.TooManyRedirects), *BAD_502, id="too-many-redirects"),
     pytest.param(_raises(requests.exceptions.InvalidURL), *BAD_502, id="invalid-url"),
     pytest.param(_raises(requests.exceptions.InvalidHeader), *BAD_502, id="invalid-header"),
     pytest.param(_raises(requests.exceptions.RequestException), *BAD_502, id="request-exception"),
     pytest.param(
-        _raises(requests.exceptions.ProxyError), 503, "upstream_unreachable", "30",
+        _raises(requests.exceptions.ProxyError),
+        503,
+        "upstream_unreachable",
+        "30",
         id="proxy-error",
     ),
     pytest.param(_body("<html>not json</html>"), *BAD_502, id="200-not-json"),
     pytest.param(_json([{"title": "a"}]), *BAD_502, id="200-json-list"),
     pytest.param(_json({}), *BAD_502, id="200-empty-object"),
     pytest.param(_json({"totalArticles": 3}), *BAD_502, id="200-no-articles-key"),
-    pytest.param(
-        _bad_article(lambda item: item.update(title=None)), *BAD_502, id="null-title"
-    ),
+    pytest.param(_bad_article(lambda item: item.update(title=None)), *BAD_502, id="null-title"),
     pytest.param(
         _bad_article(lambda item: item.update(title="   ")),
         *BAD_502,
@@ -253,9 +266,7 @@ SUCCESS_CASES = [
         id="title-stripped-extra-fields-ignored",
     ),
     pytest.param(
-        lambda article, payload: payload(
-            article(published_at="2026-10-11T11:30:00+02:00")
-        ),
+        lambda article, payload: payload(article(published_at="2026-10-11T11:30:00+02:00")),
         [
             {
                 "title": "Local bakery wins award",
@@ -355,9 +366,7 @@ def test_redirect_is_not_followed_and_maps_to_502(
 ) -> None:
     """WR-01 / D-16: X-Api-Key must never be re-sent to a redirect target."""
     target = "https://elsewhere.example.org/api"
-    mock_gnews.get(
-        gnews_url, status=redirect_status, headers={"Location": target}, body=""
-    )
+    mock_gnews.get(gnews_url, status=redirect_status, headers={"Location": target}, body="")
     mock_gnews.get(target, json=gnews_payload(gnews_article()))
 
     response = client.get("/analyze", params={"query": "x"})

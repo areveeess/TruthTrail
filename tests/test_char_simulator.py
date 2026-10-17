@@ -9,10 +9,10 @@ import uuid
 from datetime import datetime
 
 import pytest
-
-from truthtrail.schemas import models
 from spread_simulator import create_root_event, simulate_spread
 from users import USERS
+
+from truthtrail.schemas import models
 
 ARTICLE = {
     "title": "Example headline",

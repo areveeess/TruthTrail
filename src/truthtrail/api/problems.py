@@ -66,19 +66,14 @@ async def _upstream_error_handler(request: Request, exc: UpstreamError) -> JSONR
         source_status="upstream_error",
         upstream=exc.upstream,
     )
-    headers = (
-        {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
-    )
+    headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after is not None else None
     return problem_response(exc.status, body, headers)
 
 
-async def _validation_error_handler(
-    request: Request, exc: RequestValidationError
-) -> JSONResponse:
+async def _validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Render a 422 listing only where and why; the offending input is never echoed."""
     errors = [
-        {"loc": list(err["loc"]), "msg": err["msg"], "type": err["type"]}
-        for err in exc.errors()
+        {"loc": list(err["loc"]), "msg": err["msg"], "type": err["type"]} for err in exc.errors()
     ]
     body = problem_body(
         422,
@@ -90,19 +85,13 @@ async def _validation_error_handler(
     return problem_response(422, body)
 
 
-async def _http_exception_handler(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def _http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Render router errors (404, 405, ...) and keep headers such as Allow."""
-    body = problem_body(
-        exc.status_code, str(exc.detail), "http_error", source_status="error"
-    )
+    body = problem_body(exc.status_code, str(exc.detail), "http_error", source_status="error")
     return problem_response(exc.status_code, body, exc.headers)
 
 
-async def _configuration_error_handler(
-    request: Request, exc: ConfigurationError
-) -> JSONResponse:
+async def _configuration_error_handler(request: Request, exc: ConfigurationError) -> JSONResponse:
     """Render a missing configuration, reachable only when the lifespan was bypassed."""
     logger.error("request rejected: service is not configured")
     body = problem_body(
@@ -117,9 +106,7 @@ async def _configuration_error_handler(
 async def _unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
     """Render any other failure with a generic detail; only the class name is logged."""
     logger.error("unexpected error: %s", type(exc).__name__)
-    body = problem_body(
-        500, "Unexpected error.", "internal_error", source_status="error"
-    )
+    body = problem_body(500, "Unexpected error.", "internal_error", source_status="error")
     return problem_response(500, body)
 
 

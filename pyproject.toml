@@ -52,3 +52,23 @@ filterwarnings = [
     "error",
     "ignore:Using .httpx. with .starlette.testclient. is deprecated",
 ]
+
+[tool.ruff]
+line-length = 100
+# legacy/ holds the frozen Phase 1 modules; no tool may rewrite them (D-02, D-25).
+# ruff 0.17 also lints and formats Python code blocks inside Markdown; planning notes and the
+# README are prose, not source, so Markdown is excluded.
+extend-exclude = ["legacy", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "S", "SIM", "C4", "PT", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["truthtrail"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+
+[tool.ruff.format]
+# The exclusion keeps the frozen rule file byte-identical, so its sha256 pin holds (D-02, D-25).
+exclude = ["src/truthtrail/services/keyword_baseline.py"]

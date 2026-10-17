@@ -10,7 +10,7 @@ move touches this one file.
 import os
 import random
 from collections.abc import Callable, Iterator
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 import responses
@@ -64,12 +64,13 @@ def client_factory(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Any]:
 
     def make(
         *,
-        gnews_api_key: Optional[str] = FAKE_KEY,
-        demo_mode: Optional[str] = None,
+        gnews_api_key: str | None = FAKE_KEY,
+        demo_mode: str | None = None,
         raise_server_exceptions: bool = False,
     ) -> Any:
-        import truthtrail.main as main
         from fastapi.testclient import TestClient
+
+        import truthtrail.main as main
 
         if gnews_api_key is not None:
             monkeypatch.setenv("GNEWS_API_KEY", gnews_api_key)

@@ -75,7 +75,9 @@ def test_oversize_query_is_not_echoed(client, mock_gnews) -> None:
         pytest.param("é" * 200, "é" * 200, id="200-unicode"),
         pytest.param(" climate ", "climate", id="trimmed"),
         pytest.param("caf\u00e9\u00a0bar", "caf\u00e9\u00a0bar", id="latin1-letters-and-nbsp"),
-        pytest.param("a\u2013b \u201cq\u201d", "a\u2013b \u201cq\u201d", id="typographic-punctuation"),
+        pytest.param(
+            "a\u2013b \u201cq\u201d", "a\u2013b \u201cq\u201d", id="typographic-punctuation"
+        ),
     ],
 )
 def test_query_boundaries_accepted(

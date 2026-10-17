@@ -29,7 +29,10 @@ def guard():
         ("It detects the\ntruth of every post.", "truth-claim"),
         ("Our fake news detector is fast.", "fake-news-detector"),
         ("It identifies fake news early.", "detects-misinformation"),
-        ("TruthTrail detects potentially misleading content and shows its spread.", "detects-misleading"),
+        (
+            "TruthTrail detects potentially misleading content and shows its spread.",
+            "detects-misleading",
+        ),
         ("A misinformation detector for teams.", "misinformation-detector"),
         ("An AI-based system for reviewers.", "ai-claim"),
         ("The card shows a FAKE badge.", "fake-verdict-label"),
@@ -110,7 +113,9 @@ def test_allow_marker_covers_the_new_rules(guard, banned):
     assert guard.scan_text(banned, "a.md") != []
 
 
-@pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\u0085", "\x0c", "\x1c", "\x1d", "\x1e", "\r"])
+@pytest.mark.parametrize(
+    "separator", ["\u2028", "\u2029", "\u0085", "\x0c", "\x1c", "\x1d", "\x1e", "\r"]
+)
 def test_exotic_line_separators_do_not_shift_the_marker_window(guard, separator):
     """IN-01: the window uses the same line separator as the line number."""
     marker = "<!-- copy-guard: allow -->"

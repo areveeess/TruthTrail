@@ -1,14 +1,17 @@
+from typing import Literal
+
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
-from typing import Literal, Optional
+
 
 class Event(BaseModel):
     event_id: str
     platform: str
     content_id: str
-    parent_event_id: Optional[str]
+    parent_event_id: str | None
     user_id: str
     timestamp: str
     user_influence: int
+
 
 RiskLabel = Literal["High", "Medium", "Low"]
 
@@ -18,7 +21,9 @@ class ResultBase(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    headline: str = Field(description="Headline text as received from the news provider or fixture.")
+    headline: str = Field(
+        description="Headline text as received from the news provider or fixture."
+    )
     source: str = Field(description="Name of the publishing outlet.")
     published_at: AwareDatetime = Field(
         description="When the article was published (timezone-aware, UTC)."
@@ -95,15 +100,23 @@ class Problem(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    type: str = Field(default="about:blank", description="URI reference identifying the problem type.")
+    type: str = Field(
+        default="about:blank", description="URI reference identifying the problem type."
+    )
     title: str = Field(description="Short summary of the problem type.")
     status: int = Field(description="HTTP status code.")
-    detail: str = Field(description="Explanation specific to this occurrence. Never contains upstream URLs or keys.")
-    code: str = Field(description="Stable machine-readable error code, for example upstream_unauthorized.")
-    upstream: Optional[str] = Field(default=None, description="Upstream provider involved, if any.")
-    errors: Optional[list[FieldIssue]] = Field(
+    detail: str = Field(
+        description="Explanation specific to this occurrence. Never contains upstream URLs or keys."
+    )
+    code: str = Field(
+        description="Stable machine-readable error code, for example upstream_unauthorized."
+    )
+    upstream: str | None = Field(default=None, description="Upstream provider involved, if any.")
+    errors: list[FieldIssue] | None = Field(
         default=None, description="Request-validation issues, present on 422 responses."
     )
-    synthetic: bool = Field(default=False, description="Always false: an error carries no demo data.")
+    synthetic: bool = Field(
+        default=False, description="Always false: an error carries no demo data."
+    )
     source_status: str = Field(description="Provider status, for example upstream_error.")
     data_as_of: None = Field(default=None, description="Always null: an error carries no data.")

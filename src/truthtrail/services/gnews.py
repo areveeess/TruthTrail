@@ -7,8 +7,8 @@ URL.
 """
 
 import logging
-from datetime import timezone
-from typing import Annotated, NoReturn, Optional
+from datetime import UTC
+from typing import Annotated, NoReturn
 
 import requests
 from pydantic import (
@@ -49,8 +49,8 @@ class _Article(BaseModel):
 class _Payload(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    totalArticles: Optional[int] = None
-    articles: Optional[list[_Article]] = None
+    totalArticles: int | None = None
+    articles: list[_Article] | None = None
 
 
 def _fail(
@@ -58,17 +58,15 @@ def _fail(
     code: str,
     detail: str,
     *,
-    retry_after: Optional[int] = None,
-    upstream_status: Optional[int] = None,
+    retry_after: int | None = None,
+    upstream_status: int | None = None,
 ) -> NoReturn:
     """Log the failure class and raise a key-free, URL-free UpstreamError.
 
     Only the code and the upstream status are logged; the cause is dropped with
     ``from None`` because transport error text can embed the request URL.
     """
-    logger.warning(
-        "gnews request failed: code=%s upstream_status=%s", code, upstream_status
-    )
+    logger.warning("gnews request failed: code=%s upstream_status=%s", code, upstream_status)
     raise UpstreamError(status, code, detail, retry_after) from None
 
 
@@ -196,9 +194,7 @@ def fetch_news(query: str, api_key: str) -> list[dict]:
         {
             "title": a.title,
             "source": a.source.name,
-            "publishedAt": a.publishedAt.astimezone(timezone.utc).strftime(
-                "%Y-%m-%dT%H:%M:%SZ"
-            ),
+            "publishedAt": a.publishedAt.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
         for a in payload.articles
     ]
