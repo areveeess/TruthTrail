@@ -11,7 +11,7 @@
     {
       "number": "2",
       "name": "Engineering Baseline",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "3",
@@ -39,5 +39,5 @@
     "label": "Advance to the next step",
     "reason": "Phase 2 of 6 · executing"
   },
-  "updated_at": "2026-10-17T18:00:04.210Z"
+  "updated_at": "2026-10-17T18:05:55.438Z"
 }

@@ -18,7 +18,7 @@ Requirements for the first shippable portfolio release. Each maps to a roadmap p
 
 ### Engineering (ENG)
 
-- [ ] **ENG-01**: Code lives in a `src/truthtrail` package (api, services, schemas, core); the legacy `spread_simulator.py` and `users.py` are removed from the live path
+- [x] **ENG-01**: Code lives in a `src/truthtrail` package (api, services, schemas, core); the legacy `spread_simulator.py` and `users.py` are removed from the live path
 - [ ] **ENG-02**: Dependencies are pinned with a uv lockfile on Python 3.13, with training and serving requirements split
 - [ ] **ENG-03**: A pytest + hypothesis suite covers the API and the invariants (events ordered by `observed_at`; a child is never earlier than its parent), with coverage reported
 - [ ] **ENG-04**: GitHub Actions CI runs ruff, mypy, pytest, pip-audit and a secret scan on every push
@@ -109,7 +109,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-04 | Phase 1 | Complete |
 | FND-05 | Phase 1 | Complete |
 | FND-06 | Phase 1 | Complete |
-| ENG-01 | Phase 2 | Pending |
+| ENG-01 | Phase 2 | Complete |
 | ENG-02 | Phase 2 | Pending |
 | ENG-03 | Phase 2 | Pending |
 | ENG-04 | Phase 2 | Pending |
