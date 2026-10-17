@@ -48,7 +48,9 @@ class Settings(BaseSettings):
     @field_validator("gnews_api_key", mode="before")
     @classmethod
     def _blank_key_is_missing(cls, value: Any) -> Any:
-        """Trim surrounding whitespace; treat a blank key as not configured; reject the rest if unsafe.
+        """Trim surrounding whitespace; treat a blank key as not configured.
+
+        Reject the key if it is unsafe.
 
         A key that still cannot be an HTTP header value after trimming (whitespace inside it,
         non-ASCII characters) is rejected. The message never contains the value.

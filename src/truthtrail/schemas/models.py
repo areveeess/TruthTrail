@@ -43,11 +43,17 @@ class ResultBase(BaseModel):
 
 
 class LiveResult(ResultBase):
-    """Result built from live provider data. It has no events field because no spread data exists for live results."""
+    __doc__ = (
+        "Result built from live provider data. "
+        "It has no events field because no spread data exists for live results."
+    )
 
 
 class DemoResult(ResultBase):
-    """Result from the committed synthetic fixture, served only when DEMO_MODE=true. Its events are simulated."""
+    __doc__ = (
+        "Result from the committed synthetic fixture, served only when DEMO_MODE=true. "
+        "Its events are simulated."
+    )
 
     events: list[Event] = Field(
         description="Simulated propagation events. Synthetic: not observed data."
@@ -70,7 +76,9 @@ class Meta(BaseModel):
         )
     )
     source_status: Literal["ok", "empty", "fixture"] = Field(
-        description="ok: provider returned articles. empty: provider returned none. fixture: demo data."
+        description=(
+            "ok: provider returned articles. empty: provider returned none. fixture: demo data."
+        )
     )
 
 
@@ -96,7 +104,10 @@ class FieldIssue(BaseModel):
 
 
 class Problem(BaseModel):
-    """RFC 9457 problem details with extension members code, upstream, errors and the provenance trio."""
+    __doc__ = (
+        "RFC 9457 problem details with extension members code, upstream, errors "
+        "and the provenance trio."
+    )
 
     model_config = ConfigDict(extra="forbid")
 

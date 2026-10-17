@@ -5,6 +5,7 @@ never compared. Known timestamp defects are strict xfails asserting the
 desired behaviour.
 """
 
+import itertools
 import uuid
 from datetime import datetime
 
@@ -57,7 +58,7 @@ def test_chain_linkage() -> None:
         chain = _children(events, platform)
         assert len(chain) == 6
         assert chain[0]["parent_event_id"] == root["event_id"]
-        for previous, current in zip(chain, chain[1:]):
+        for previous, current in itertools.pairwise(chain):
             assert current["parent_event_id"] == previous["event_id"]
         assert all(e["content_id"] == root["content_id"] for e in chain)
 
@@ -104,7 +105,10 @@ def test_events_validate_as_event_model() -> None:
 @pytest.mark.xfail(
     strict=True,
     raises=AssertionError,
-    reason="children are offset from the root, not from their parent; about 41% of links precede their parent",
+    reason=(
+        "children are offset from the root, not from their parent; "
+        "about 41% of links precede their parent"
+    ),
 )
 def test_child_never_before_parent(seeded_random) -> None:
     def parsed(value: str) -> datetime:

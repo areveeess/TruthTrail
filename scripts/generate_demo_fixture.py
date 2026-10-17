@@ -2,7 +2,7 @@
 
 Usage (from the repository root):
 
-    python scripts/generate_demo_fixture.py            # (re)write src/truthtrail/data/demo_analyze.json
+    python scripts/generate_demo_fixture.py            # (re)write the committed demo fixture
     python scripts/generate_demo_fixture.py --check    # exit 1 if the file is stale or hand-edited
     python scripts/generate_demo_fixture.py --path X   # use another file (with or without --check)
 
@@ -98,7 +98,8 @@ def build_fixture() -> dict:
     saved_state = random.getstate()
     try:
         random.seed(SEED)
-        fake_uuid4 = _seeded_uuid4(random.Random(SEED))
+        rng = random.Random(SEED)  # noqa: S311 - deterministic fixture seed, not security
+        fake_uuid4 = _seeded_uuid4(rng)
         results = []
         with mock.patch.object(spread_simulator.uuid, "uuid4", fake_uuid4):
             for article in DEMO_ARTICLES:

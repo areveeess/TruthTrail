@@ -76,13 +76,18 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
     "/analyze",
     response_model=AnalyzeResponse,
     responses=PROBLEM_RESPONSES,
-    summary="Keyword-baseline risk flag for the most recent matching headline (flag for human review)",
+    summary=(
+        "Keyword-baseline risk flag for the most recent matching headline (flag for human review)"
+    ),
 )
 def analyze(
     query: Annotated[
         SearchQuery,
         Query(
-            description="Search keywords, 1-200 characters after trimming; control and line-separator characters are rejected."
+            description=(
+                "Search keywords, 1-200 characters after trimming; "
+                "control and line-separator characters are rejected."
+            )
         ),
     ],
     settings: Annotated[Settings, Depends(get_settings)],

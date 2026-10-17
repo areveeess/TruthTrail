@@ -1,2 +1,4 @@
 # line-ending normalisation (D-16)
 0e9f90bcda102eed833e5f44ee7c646c7f7da957
+# ruff autofixes and ruff format (02-04)
+a5307569be224b3c0dd878bb740ca14af1ee90a1

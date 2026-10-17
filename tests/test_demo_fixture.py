@@ -100,7 +100,8 @@ def generator() -> ModuleType:
     pytest.importorskip("spread_simulator")
     path = REPO_ROOT / "scripts" / "generate_demo_fixture.py"
     spec = importlib.util.spec_from_file_location("generate_demo_fixture", path)
-    assert spec is not None and spec.loader is not None
+    assert spec is not None
+    assert spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -118,7 +119,8 @@ def run_check(*extra: str) -> subprocess.CompletedProcess:
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
-        # SYSTEMROOT is required on Windows: without it asyncio cannot initialise Winsock (WinError 10106).
+        # SYSTEMROOT is required on Windows: without it asyncio cannot initialise Winsock
+        # (WinError 10106).
         env={"PYTHONDONTWRITEBYTECODE": "1", "PATH": "", **_windows_system_env()},
     )
 

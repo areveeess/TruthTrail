@@ -1,4 +1,4 @@
-"""Repo hygiene: no credential literals in git-visible files, names-only .env.example, .gitignore rules.
+"""Repo hygiene: no credential literals in git-visible files, names-only example env, gitignore.
 
 Failure messages list ``path:line`` only, never the matched text, so a failing run
 cannot print a secret. ``tests/`` is skipped because it holds deliberate fake markers.

@@ -91,7 +91,8 @@ BANNED: list[tuple[str, re.Pattern[str]]] = [
 
 REQUIRED_README = re.compile(r"\bflag(s|ged)?\b[\s\S]{0,60}?\bfor\s+human\s+review\b", re.I)
 
-# UI directories that do not exist yet simply match nothing; Phase 5 adds its directory if it differs.
+# UI directories that do not exist yet simply match nothing; Phase 5 adds its directory if it
+# differs.
 SCAN_GLOBS = (
     "README.md",
     "docs/**/*",
@@ -136,8 +137,9 @@ class Finding(NamedTuple):
 
 def scan_text(text: str, source: str) -> list[Finding]:
     """Return a Finding for every banned phrase in ``text`` that is not allow-marked."""
-    # Split on "\n" only: line numbers below come from text.count("\n"), and str.splitlines() would also
-    # split on U+2028, U+0085, \x0c, \x1c-\x1e and lone \r, shifting the window so a distant marker is accepted.
+    # Split on "\n" only: line numbers below come from text.count("\n"), and str.splitlines()
+    # would also split on U+2028, U+0085, \x0c, \x1c-\x1e and lone \r, shifting the window so a
+    # distant marker is accepted.
     lines = text.split("\n")
     findings: list[Finding] = []
     for rule, pattern in BANNED:
@@ -225,7 +227,7 @@ def _scan(root: Path, include_openapi: bool) -> tuple[list[Finding], int, int]:
 
 
 def scan_repo(root: Path, include_openapi: bool = True) -> list[Finding]:
-    """Scan README, docs, UI directories and (optionally) the live OpenAPI strings under ``root``."""
+    """Scan README, docs, UI dirs and (optionally) the live OpenAPI strings under ``root``."""
     return _scan(Path(root), include_openapi)[0]
 
 

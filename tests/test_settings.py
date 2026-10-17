@@ -132,7 +132,8 @@ def test_uvicorn_exits_on_missing_key(tmp_path: Path) -> None:
         "PYTHONDONTWRITEBYTECODE": "1",
         "DATABASE_URL": DATABASE_URL_MARKER,
     }
-    # SYSTEMROOT is required on Windows: without it asyncio cannot initialise Winsock (WinError 10106).
+    # SYSTEMROOT is required on Windows: without it asyncio cannot initialise Winsock
+    # (WinError 10106).
     if "SYSTEMROOT" in os.environ:
         env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
 
@@ -152,7 +153,8 @@ def test_uvicorn_exits_on_missing_key(tmp_path: Path) -> None:
     assert "not-a-real" not in output
 
 
-# Surrounding whitespace (a pasted newline or space) is trimmed by Settings (owner decision, UAT test 3).
+# Surrounding whitespace (a pasted newline or space) is trimmed by Settings (owner decision,
+# UAT test 3).
 TRIMMABLE_KEYS = [
     pytest.param("FAKE_TEST_KEY\n", id="trailing-newline"),
     pytest.param("FAKE_TEST_KEY\r\n", id="trailing-crlf"),
@@ -206,7 +208,7 @@ def test_malformed_key_fails_startup_without_calling_the_provider(
 def test_malformed_key_without_lifespan_is_500_not_configured(
     client_factory: Any, mock_gnews: Any, gnews_url: str, gnews_payload: Any, bad_key: str
 ) -> None:
-    """If the lifespan is bypassed, the request still answers not_configured and never reaches the provider."""
+    """With the lifespan bypassed, the request answers not_configured and skips the provider."""
     mock_gnews.get(gnews_url, json=gnews_payload())
     client = client_factory(gnews_api_key=bad_key)
 

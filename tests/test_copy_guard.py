@@ -1,4 +1,7 @@
-"""Tests for scripts/copy_guard.py (D-13): rules, allow marker, exclusions, OpenAPI walk, repo state."""
+"""Tests for scripts/copy_guard.py (D-13).
+
+Covers rules, allow marker, exclusions, OpenAPI walk and repo state.
+"""
 
 import importlib.util
 import os
@@ -109,7 +112,8 @@ def test_allow_marker_covers_the_new_rules(guard, banned):
     assert guard.scan_text(f"{banned} {marker}", "a.md") == []
     assert guard.scan_text(f"{marker}\n{banned}", "a.md") == []
     far = guard.scan_text(f"{marker}\nfiller\n{banned}", "a.md")
-    assert len(far) == 1 and far[0].line == 3
+    assert len(far) == 1
+    assert far[0].line == 3
     assert guard.scan_text(banned, "a.md") != []
 
 
