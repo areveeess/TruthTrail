@@ -68,7 +68,44 @@ Plans:
   4. `docker build` succeeds and the running container answers `/health` with 200, while `/ready` returns 503 whenever a registered dependency check fails (proved by a test with an injected failing check); the database check lands in Phase 3 and the model-artifact check in Phase 4.
   5. CORS accepts only configured origins, requests over the rate limit receive 429, repeated reads are served from a TTL cache, and outbound HTTP uses timeouts and bounded retries (each proven by a test, including a mocked slow or failing upstream that stops after the retry bound).
 
-**Plans**: TBD
+**Plans**: 12 plans
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Wave 1: standalone line-ending commit, frozen Phase 1 OpenAPI golden snapshot, hash pins for the files that move (ENG-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-02-PLAN.md — Wave 2: pure git mv into src/truthtrail and legacy/, retarget imports and tests, root shim, legacy-unreachable proof (ENG-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-03-PLAN.md — Wave 3: pyproject.toml, uv.lock on Python 3.13, serving/dev/train groups, CI copy-guard and tests on uv (ENG-02, ENG-04)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 02-04-PLAN.md — Wave 4: ruff and mypy strict to green (mechanical format commit, hand fixes, types) (ENG-04)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 02-05-PLAN.md — Wave 5: create_app() factory, BootSettings, configured-origin CORS, catch-all inside CORS, Problem.synthetic Literal[False] (ENG-06)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 02-06-PLAN.md — Wave 6: /health and /ready with a fail-closed readiness registry (503 proved by an injected failing check) (ENG-05)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 02-07-PLAN.md — Wave 7: per-IP rate limit and 429 problem+json, /v1 LimitedRouter mount with probe-route proof, trusted-proxy switch (ENG-06)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 02-08-PLAN.md — Wave 8: TTL cache for /analyze with X-Cache, successes only, limit before cache (ENG-06)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [ ] 02-09-PLAN.md — Wave 9: bounded retry loop with 8 s budget, injected clock tests, Retry-After 0 clamp (ENG-06)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 02-10-PLAN.md — Wave 10: cascade invariants (order_events, validate_cascade), Hypothesis properties, fixture load gate (ENG-03)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [ ] 02-11-PLAN.md — Wave 11: Dockerfile, .dockerignore, static container contract, installed-package smoke test (ENG-05)
+
+**Wave 12** *(blocked on Wave 11 completion)*
+- [ ] 02-12-PLAN.md — Wave 12: coverage gate, CI jobs lint/typecheck/audit/docker, README with Windows and uv setup, phase gate (ENG-02, ENG-03, ENG-04, ENG-05)
 
 ### Phase 3: Real Propagation Data
 
