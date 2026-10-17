@@ -1,7 +1,7 @@
 ---
 phase: "2"
 slug: "engineering-baseline"
-# status lifecycle: draft (seeded by plan-phase) -> validated (set by validate-phase section 6)
+# status lifecycle: draft (seeded by plan-phase) -> validated (set by plan 02-12 Task 3 step 6 when the phase gate passes; /gsd-validate-phase may re-audit it afterwards)
 # audit-milestone section 5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
 status: draft
 nyquist_compliant: false
@@ -24,7 +24,7 @@ created: "2026-10-17"
 | **Quick run command** | `.venv/bin/python -m pytest -q -x tests/{affected file}.py` |
 | **Full suite command** | `.venv/bin/python -m pytest -q` (plans 02-01 to 02-11); `.venv/bin/python -m pytest --cov --hypothesis-profile=ci -q` (final form, plan 02-12) |
 | **Non-pytest gates** | `.venv/bin/ruff check . && .venv/bin/ruff format --check .` (from 02-04); `.venv/bin/mypy` (from 02-04); `.venv/bin/python scripts/copy_guard.py`; `.venv/bin/python scripts/generate_demo_fixture.py --check`; `uv lock --check`; `uv export --locked --no-emit-project --all-groups --format requirements-txt -o {file}` + `.venv/bin/pip-audit -r {file} --require-hashes --disable-pip --progress-spinner off`; `bash scripts/gitleaks_scan.sh {bin} <floor> HEAD <floor>` and `bash scripts/gitleaks_selftest.sh {bin}`; `python scripts/smoke_app.py --python {venv python}` against a `--locked --no-dev --no-editable` install |
-| **Invariants after every plan** | passed count only grows from 274; xfailed stays 10; no XPASS; the Phase 1 tests change only by import paths, string patch targets, path constants, the logger-name string, and the single stated timeout expectation (plan 02-09) |
+| **Invariants after every plan** | passed count only grows from 274; xfailed stays 10; no XPASS; the Phase 1 tests change only by import paths, string patch targets, path constants and the edits tabulated under "Expected Phase 1 test edits" below (any other changed assertion line in a Phase 1 test file is a defect) |
 | **Estimated runtime** | about 15 s without coverage, about 40 s with `--cov --hypothesis-profile=ci` (Phase 1 suite: 3.6 s; Hypothesis ci profile: about 4 s for the four properties; uv sync from a cold cache adds 10-30 s) |
 
 ---
@@ -33,8 +33,8 @@ created: "2026-10-17"
 
 - **After every task commit:** the quick run for the touched test files, `.venv/bin/python -m pytest -q tests/test_no_hardcoded_credentials.py`, the word-bounded 32-hex added-lines scan, and (from plan 02-04) `ruff check`, `ruff format --check`, `mypy`.
 - **After every plan (one wave each):** the full suite (`.venv/bin/python -m pytest -q`), `tests/test_openapi_golden.py` and `tests/test_legacy_frozen.py` explicitly named in the plan verify, plus `python scripts/copy_guard.py` once the README or OpenAPI strings changed.
-- **Deliberate exception:** the pure-rename commit of plan 02-02 Task 1 is red by design (imports unresolved) and repaired by the next commit of the same plan; the credentials test cannot run there (conftest imports the moved config module) and the added-line scan is empty for a pure rename.
-- **Before `/gsd-verify-work`:** the phase gate in 02-12 Task 3 (full suite with coverage and the CI Hypothesis profile, ruff, mypy, copy guard, fixture check, lock check, pip-audit pair, gitleaks scan from the floor and selftest, smoke script, frozen-file blob comparisons against 9b5b085, clean tree). The post-push Actions run is a NON-GATING follow-up harvested into the phase UAT (config `human_verify_mode: end-of-phase`).
+- **Deliberate exception:** the pure-rename commit of plan 02-02 Task 1 is red by design (imports unresolved) and repaired by the next commit of the same plan; the credentials test cannot run there (conftest imports the moved config module) and the added-line scan is empty for a pure rename. Executors never push; the orchestrator pushes only at plan boundaries, so this red commit is never pushed on its own and never becomes the remote branch tip (02-02 Task 1 also asserts that no remote-tracking branch contains it).
+- **Before `/gsd-verify-work`:** the phase gate in 02-12 Task 3 (full suite with coverage and the CI Hypothesis profile, ruff, mypy, copy guard, fixture check, lock check, pip-audit pair, gitleaks scan from the floor and selftest, smoke script, frozen-file blob comparisons against 9b5b085, clean tree). The post-push Actions run is a NON-GATING follow-up harvested into the phase UAT (config `human_verify_mode: end-of-phase`); until it is confirmed, ROADMAP criterion 2 is 'pending human confirmation', never passed (same for criterion 4 and the docker build and run).
 - **Max feedback latency:** 60 seconds.
 
 ---
@@ -61,14 +61,14 @@ Threat refs point at the `<threat_model>` tables in the PLAN files (IDs T-02-01 
 | 02-06-01 | 02-06 | 6 | ENG-05 | T-02-18 | Readiness registry fails closed (raise, non-True), rejects duplicates and blank names, never logs exception text | unit | `.venv/bin/python -m pytest -q tests/test_readiness_registry.py` | W0 | pending |
 | 02-06-02 | 02-06 | 6 | ENG-05 | T-02-16, T-02-17 | `/health` 200; `/ready` 200 with no checks, 503 problem+json naming only failed checks (injected failing and raising checks), recovery; OpenAPI additions limited to /health and /ready | integration + contract | `.venv/bin/python -m pytest -q tests/test_health_ready.py tests/test_openapi_golden.py tests/test_openapi_contract.py` | W0 | pending |
 | 02-07-01 | 02-07 | 7 | ENG-06 | T-02-19, T-02-22 | `/analyze` limited per IP (default 10 per minute), 429 problem+json with Retry-After >= 1 and provenance, health endpoints and 422s not counted, per-IP and per-app isolation, invalid limit fails startup, 429 declared in OpenAPI | integration | `.venv/bin/python -m pytest -q tests/test_rate_limit.py tests/test_openapi_golden.py` | W0 | pending |
-| 02-07-02 | 02-07 | 7 | ENG-06 | T-02-20, T-02-21 | `/v1` LimitedRouter returns 429 for a probe route (fail-closed proof), handler without `request` cannot register, spoofed X-Forwarded-For ignored unless trusted | integration | `.venv/bin/python -m pytest -q tests/test_v1_limits.py` | W0 | pending |
+| 02-07-02 | 02-07 | 7 | ENG-06 | T-02-20, T-02-21 | `/v1` LimitedRouter returns 429 for a probe route (fail-closed proof), handler without `request` cannot register, spoofed X-Forwarded-For ignored unless trusted; a REAL uvicorn started with `--no-proxy-headers` ignores a spoofed X-Forwarded-For (negative control: uvicorn default flags let it through) | integration + subprocess | `.venv/bin/python -m pytest -q tests/test_v1_limits.py tests/test_proxy_headers_server.py` | W0 | pending |
 | 02-08-01 | 02-08 | 8 | ENG-06 | T-02-28, T-02-29, T-02-31 | AnalyzeCache: TTL (599 s hit, 601 s miss), LRU bound 256, normalised keys, lock-guarded, injectable clock | unit | `.venv/bin/python -m pytest -q tests/test_cache_unit.py` | W0 | pending |
 | 02-08-02 | 02-08 | 8 | ENG-06 | T-02-28, T-02-30 | `/analyze` hit/miss with `X-Cache`, original `data_as_of` kept, errors never cached, empty result cached, limit applies before cache | integration | `.venv/bin/python -m pytest -q tests/test_cache.py` | W0 | pending |
 | 02-09-01 | 02-09 | 9 | ENG-06 | T-02-32, T-02-33, T-02-34 | Retry loop: 3 attempts, 0.3/0.6 s backoff, no retry on 4xx/429/3xx/SSL, 8 s budget, Phase 1 mapping unchanged on exhaustion, no real sleeping | integration (responses) | `.venv/bin/python -m pytest -q tests/test_retries.py tests/test_upstream_errors.py` | W0 | pending |
 | 02-09-02 | 02-09 | 9 | ENG-06 | T-02-32, T-02-33, T-02-35 | Failing and slow upstream stop at the bound through `GET /analyze`; log hygiene across retries; `Retry-After: 0` becomes 1 | integration | `.venv/bin/python -m pytest -q tests/test_retries.py tests/test_upstream_errors.py` | W0 | pending |
 | 02-10-01 | 02-10 | 10 | ENG-03 | T-02-38 | `order_events`/`validate_cascade` properties on arbitrary cascades (ties, shuffles, mutants killed); Hypothesis `ci` profile | property | `.venv/bin/python -m pytest -q tests/test_cascade_properties.py --hypothesis-profile=ci` | W0 | pending |
 | 02-10-02 | 02-10 | 10 | ENG-03 | T-02-36, T-02-37 | Fixture load is gated by `validate_cascade`; demo startup fails on a violating fixture; served order unchanged; stdlib-only core module | integration | `.venv/bin/python -m pytest -q tests/test_cascade_gate.py tests/test_demo_fixture.py tests/test_legacy_frozen.py` | W0 | pending |
-| 02-11-01 | 02-11 | 11 | ENG-05 | T-02-24, T-02-25, T-02-26 | Dockerfile static contract: digest-pinned stages, non-root, no secrets, HEALTHCHECK on /health, exact CMD, legacy/tests/scripts not copied, .dockerignore entries | static | `.venv/bin/python -m pytest -q tests/test_container_files.py` | W0 | pending |
+| 02-11-01 | 02-11 | 11 | ENG-05 | T-02-24, T-02-25, T-02-26 | Dockerfile static contract: digest-pinned stages, non-root, no secrets, HEALTHCHECK on /health, exact CMD including `--no-proxy-headers`, legacy/tests/scripts not copied, .dockerignore entries | static | `.venv/bin/python -m pytest -q tests/test_container_files.py` | W0 | pending |
 | 02-11-02 | 02-11 | 11 | ENG-05 | T-02-25 | `--locked --no-dev --no-editable` install serves /health, /ready and demo /analyze (X-Cache miss then hit); legacy, dev and train modules not importable | smoke | `env_dir=...; UV_PROJECT_ENVIRONMENT="$env_dir" uv sync --locked --no-dev --no-editable && "$env_dir/bin/python" scripts/smoke_app.py --python "$env_dir/bin/python"` | W0 | pending |
 | 02-12-01 | 02-12 | 12 | ENG-03 | T-02-42 | Coverage measured on the final tree; `fail_under` = floor(total) minus 2; gate fires on a 100 percent negative control; not in addopts | coverage | `.venv/bin/python -m pytest --cov --hypothesis-profile=ci -q` and `.venv/bin/python -m pytest -q tests/test_coverage_config.py` | W0 | pending |
 | 02-12-02 | 02-12 | 12 | ENG-04, ENG-05 | T-02-39, T-02-40, T-02-41 | Seven CI jobs (lint, typecheck, audit, docker added); SHA-pinned actions, read-only permissions, timeouts, no secrets; every job command proven locally | static contract | `.venv/bin/python -m pytest -q tests/test_ci_workflow.py` and `uv lock --check` and the pip-audit pair | existing | pending |
@@ -83,10 +83,31 @@ Threat refs point at the `<threat_model>` tables in the PLAN files (IDs T-02-01 
 | Criterion | Requirement | Behavior | Proof |
 |-----------|-------------|----------|-------|
 | SC1 | ENG-01 | `src/truthtrail` serves the same endpoints; Phase 1 tests pass through the refactor; simulator and users unreachable | `tests/test_openapi_golden.py`, full suite, `tests/test_no_legacy_imports.py`, `tests/test_legacy_frozen.py`, `tests/test_main_shim.py` |
-| SC2 | ENG-02, ENG-04 | Fresh clone installs from uv lock on 3.13 with split groups; CI runs ruff, mypy, pytest, pip-audit, secret scan; green on the final commit | `tests/test_dependency_groups.py`, fresh-clone `uv sync --locked`, `tests/test_ci_workflow.py`, local runs of every CI command; **green Actions run = NON-GATING human follow-up** |
+| SC2 | ENG-02, ENG-04 | Fresh clone installs from uv lock on 3.13 with split groups; CI runs ruff, mypy, pytest, pip-audit, secret scan; green on the final commit | `tests/test_dependency_groups.py`, fresh-clone `uv sync --locked`, `tests/test_ci_workflow.py`, local runs of every CI command; **green Actions run = NON-GATING human follow-up; status 'pending human confirmation' (OPEN), never 'passed' before it** |
 | SC3 | ENG-03 | pytest + hypothesis suite, coverage reported, ordering and parent-before-child properties | `tests/test_cascade_properties.py` (ci profile), `tests/test_cascade_gate.py`, coverage gate (02-12) |
-| SC4 | ENG-05 | `docker build` succeeds and the container answers `/health`; `/ready` 503 on a failing registered check | `tests/test_health_ready.py` (injected failing check); `tests/test_container_files.py` + smoke script; **docker build/run = NON-GATING human follow-up and CI docker job** |
+| SC4 | ENG-05 | `docker build` succeeds and the container answers `/health`; `/ready` 503 on a failing registered check | `tests/test_health_ready.py` (injected failing check); `tests/test_container_files.py` + smoke script; **docker build/run = NON-GATING human follow-up and CI docker job; status 'pending human confirmation' (OPEN), never 'passed' before it** |
 | SC5 | ENG-06 | CORS only configured origins; 429; TTL cache; timeouts and bounded retries incl. slow/failing upstream | `tests/test_cors.py`, `tests/test_rate_limit.py`, `tests/test_v1_limits.py`, `tests/test_cache.py`, `tests/test_retries.py` |
+
+---
+
+## Expected Phase 1 test edits
+
+The Phase 1 suite (274 passed, 10 xfailed) must keep passing with its assertions unchanged except for the rows below. This is the single list the verifier uses: any other changed assertion line in a Phase 1 test file (`tests/test_char_risk_analyzer.py`, `test_char_simulator.py`, `test_copy_guard.py`, `test_demo_fixture.py`, `test_network_guard.py`, `test_no_hardcoded_credentials.py`, `test_openapi_contract.py`, `test_provenance_demo.py`, `test_request_validation.py`, `test_response_models.py`, `test_settings.py`, `test_upstream_errors.py`) is unexpected and a defect.
+
+Standing categories that are NOT listed row by row: import statements, string patch targets (built from the `app_module` fixture, plans 02-01, 02-02 and 02-05), path constants and frozen-file keys (02-02), and the output of the mechanical ruff autofix and format commit (02-04, recorded in `.git-blame-ignore-revs`; review with `git diff --ignore-all-space` and skip that commit). Rows 1 to 5 are the edits the verifier must expect beyond those categories; rows 6 to 8 are smaller ones listed for completeness.
+
+| # | Plan | File | Edit | Kind | Justification |
+|---|------|------|------|------|---------------|
+| 1 | 02-09 | `tests/test_upstream_errors.py` | In `test_request_uses_timeout_header_and_fixed_params` the whole-tuple equality `request.req_kwargs["timeout"] == (3.05, 10)` becomes two booleans: the connect timeout equals 3.05 and the read timeout is greater than 7.9 and at most 8.0 | assertion edit | D-12 caps the first attempt's read timeout at the 8 s total budget, so the old read timeout of 10 can no longer occur; the exact `(3.05, 8.0)` is asserted with a fake clock in `tests/test_retries.py`. The only Phase 1 assertion that necessarily changes |
+| 2 | 02-04 | `tests/test_copy_guard.py` | `assert len(far) == 1 and far[0].line == 3` is split into two consecutive asserts (ruff PT018) | assertion edit, semantically identical | PT018 is in the D-15 rule selection; same conditions, same order |
+| 3 | 02-04 | `tests/test_demo_fixture.py` | `assert spec is not None and spec.loader is not None` is split into two consecutive asserts (ruff PT018) | assertion edit, semantically identical | same as row 2 |
+| 4 | 02-02 | `tests/test_upstream_errors.py` | In `test_no_key_or_url_in_logs` the logger-name string in the record filter `r.name == "gnews_fetcher"` becomes `"truthtrail.services.gnews"` | string retarget (a list-comprehension filter, not an assert line) | the adapter's logger is named after its module `__name__`, which changes with the move (D-04); the test still requires a WARNING record from that logger, so it cannot pass vacuously |
+| 5 | 02-05 | `src/truthtrail/api/problems.py` (production code; the test below passes unchanged apart from the 02-01 patch-target constant) | The generic `Exception` handler registered by `register_problem_handlers` is removed; its job moves into `CatchAllMiddleware` | production change under a Phase 1 test | A handler registered for `Exception` renders in Starlette's outermost ServerErrorMiddleware, outside CORS, so a 500 would carry no CORS headers (review item IN-02, D-09). The catch-all inside CORS produces the identical body and log line, and `tests/test_request_validation.py::test_unexpected_error_is_generic_500` must pass with no assertion edit |
+| 6 | 02-04 | `tests/test_char_simulator.py` | `zip(chain, chain[1:])` becomes `itertools.pairwise(chain)` (ruff B905 and RUF007) | code edit in a test body, no assertion change | same successive pairs; keeps the rule selection clean without a blanket ignore |
+| 7 | 02-05, 02-07 | `tests/test_no_hardcoded_credentials.py` | `EXPECTED_ENV_NAMES` gains CORS_ORIGINS (02-05) and RATE_LIMIT_ANALYZE, RATE_LIMIT_V1, TRUST_PROXY_HEADERS, FORWARDED_ALLOW_IPS (02-07) | expected-value list extended | the test requires every non-comment line of the example environment file to be a bare `NAME=` from this list (research Pitfall 12); new variables are added together with their code |
+| 8 | 02-02 | `tests/test_no_hardcoded_credentials.py`, `tests/test_settings.py` | gitignore-semantics parametrisation paths (`fixtures/demo_analyze.json` and `models.py` take their new paths); the PYTHONPATH value in `test_uvicorn_exits_on_missing_key` (repo root plus `src`); the in-function imports | path and import retarget | the files moved; listed because they are not plain top-of-file imports |
+
+Additions that edit no existing assertion: new tests appended to `tests/test_response_models.py` and `tests/test_openapi_golden.py` (02-05), new parametrised `FAILURE_CASES` rows for `Retry-After: 0` and `00` in `tests/test_upstream_errors.py` (02-09, closes review item IN-03), and fixtures added to `tests/conftest.py` (02-01, 02-05, 02-09, 02-10).
 
 ---
 
@@ -99,7 +120,7 @@ Test files and infrastructure created by the plans (all must exist before the ph
 - [ ] `tests/test_dependency_groups.py`, `tests/test_ci_workflow.py`; framework install `uv sync` (02-03)
 - [ ] `tests/test_app_factory.py`, `tests/test_cors.py`; conftest `client_factory(env, client, app_kwargs)` (02-05)
 - [ ] `tests/test_readiness_registry.py`, `tests/test_health_ready.py` (02-06)
-- [ ] `tests/test_rate_limit.py`, `tests/test_v1_limits.py` (02-07)
+- [ ] `tests/test_rate_limit.py`, `tests/test_v1_limits.py`, `tests/test_proxy_headers_server.py` (02-07)
 - [ ] `tests/test_cache_unit.py`, `tests/test_cache.py` (02-08)
 - [ ] `tests/test_retries.py`; conftest autouse `no_real_sleep` (02-09)
 - [ ] `tests/test_cascade_properties.py`, `tests/test_cascade_gate.py`; conftest Hypothesis profiles (02-10)
@@ -111,7 +132,7 @@ Test files and infrastructure created by the plans (all must exist before the ph
 
 ## Manual-Only Verifications
 
-All items are **NON-GATING**: they never block a plan, the phase gate or `/gsd-verify-work`; the verifier harvests them into the phase UAT (config `human_verify_mode: end-of-phase`).
+All items are **NON-GATING**: they never block a plan, the phase gate or `/gsd-verify-work`; the verifier harvests them into the phase UAT (config `human_verify_mode: end-of-phase`). Non-gating does not mean passed: ROADMAP success criteria 2 (CI green on the final commit) and 4 (`docker build` and a running container answering `/health`) stay 'pending human confirmation' until the first two rows below are confirmed, and the verifier must list them as OPEN human-verify items, never as passed.
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
@@ -134,6 +155,8 @@ All items are **NON-GATING**: they never block a plan, the phase gate or `/gsd-v
 - [ ] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
+
+**Ownership of the flip:** plan 02-12 Task 3 step 6 sets `status: validated`, `nyquist_compliant: true` and `wave_0_complete: true`, ticks the boxes the evidence supports and sets the approval line, but only if every command of that plan's phase gate exited 0; otherwise the fields stay as they are and the SUMMARY names the failing command. It never marks a Manual-Only item as verified (ROADMAP criteria 2 and 4 stay 'pending human confirmation'). `/gsd-validate-phase` may re-audit the file afterwards.
 
 ---
 
@@ -208,8 +231,12 @@ No row is MISSING. Deferred ideas (shared rate-limit store, pre-commit hooks, st
 3. **Move split.** The pure `git mv` (02-02 Task 1) is deliberately red for one commit; the repair commit is in the same plan. The `.venv` stays pip-created through 02-02 (temporary `pythonpath = src legacy .` in pytest.ini) and becomes uv-created in 02-03, because `uv_build` needs the package directory to exist before `uv sync`.
 4. **Golden snapshot taken before the move**, from the unmoved Phase 1 code (13.9 KB), not from commit 765b844 (same code, simpler to obtain); its sha256 is pinned in the test.
 5. **`limits==5.8.0` is declared as a direct pin** (plan 02-03) because plan 02-07 imports it to validate rate-limit settings at startup; it is slowapi's engine and already in the research lock.
-6. **One Phase 1 assertion changes by necessity** (plan 02-09): the first attempt's timeout is `(3.05, at most 8.0)` instead of `(3.05, 10)`, because D-12's 8 s total budget caps the read timeout. All other upstream tests pass unchanged. Two PT018 compound asserts are split by ruff-driven edits (plan 02-04), semantically identical.
-7. **The generic `Exception` handler is removed** in plan 02-05 (its job moves into the catch-all that sits inside CORS); the produced 500 body and log line are identical, and the Phase 1 test `test_unexpected_error_is_generic_500` still passes unchanged.
+6. **One Phase 1 assertion changes by necessity** (plan 02-09): the first attempt's timeout is `(3.05, at most 8.0)` instead of `(3.05, 10)`, because D-12's 8 s total budget caps the read timeout. All other upstream tests pass unchanged. Two PT018 compound asserts are split by ruff-driven edits (plan 02-04), semantically identical. Every Phase 1 test edit beyond import paths and patch targets is tabulated under "Expected Phase 1 test edits".
+7. **The generic `Exception` handler is removed** in plan 02-05 (its job moves into the catch-all that sits inside CORS); the produced 500 body and log line are identical, and the Phase 1 test `test_unexpected_error_is_generic_500` still passes unchanged (row 5 of "Expected Phase 1 test edits").
 8. **Startup check in demo mode** (plan 02-10) loads the fixture in the lifespan so a violating fixture stops startup; this is the second half of review item IN-02 and an application of D-19's "fails loudly", not a new feature.
 9. **Package legitimacy.** The tool reports SUS for every package; D-26 repeats the owner's waiver, so no `checkpoint:human-verify` task is inserted (also suppressed by `human_verify_mode: end-of-phase`); the owner reviews the table in the 02-03 SUMMARY. slowapi is flagged as the one low-adoption package.
 10. **Environment variable names added with their code** (CORS_ORIGINS in 02-05; RATE_LIMIT_ANALYZE, RATE_LIMIT_V1, TRUST_PROXY_HEADERS, FORWARDED_ALLOW_IPS in 02-07), each time in all three places the credentials test requires (example file, `EXPECTED_ENV_NAMES`, conftest `ENV_NAMES`).
+11. **uvicorn's own proxy handling is switched off.** uvicorn 0.54.0 has `--proxy-headers` on by default and trusts X-Forwarded-For from 127.0.0.1, ::1 and FORWARDED_ALLOW_IPS, which bypasses D-10's `TRUST_PROXY_HEADERS` default of false in a real server (TestClient never passes through that layer). Every start command carries `--no-proxy-headers` (image CMD in 02-11, smoke script in 02-11, README in 02-12) and the in-app middleware of 02-07 is the only trust switch. 02-07 proves it with a real-uvicorn subprocess test (SYSTEMROOT passthrough) plus a default-flags negative control, and 02-11's static test pins the CMD. D-18's command gains this one flag, per D-10; no decision changes.
+12. **Self-contained process guards.** The root pin guard in every plan is an inline `git rev-parse --show-toplevel` / `git branch --show-current` check; no plan depends on a session-specific file outside the repository. Plan 02-03 stops and asks the orchestrator if uv 0.13.1 cannot be installed (no silent lock-version downgrade).
+13. **Push discipline.** Executors never push; the orchestrator pushes only at plan boundaries, so plan 02-02's deliberate red rename commit is never pushed on its own.
+14. **Validation ownership and open criteria.** Plan 02-12 Task 3 step 6 flips this file to validated when the phase gate passes; ROADMAP criteria 2 and 4 remain 'pending human confirmation' (OPEN human-verify items) and are never reported as passed before the Actions run and the docker build and run are confirmed.
