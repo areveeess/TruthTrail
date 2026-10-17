@@ -8,7 +8,10 @@ The limiter is built per app by ``create_app()`` and lives on ``app.state.limite
 is in memory, so state is per process and never shared between apps.
 """
 
-from fastapi import Request
+from collections.abc import Callable
+from typing import Any
+
+from fastapi import APIRouter, Request
 from slowapi import Limiter
 
 
@@ -20,3 +23,24 @@ def client_ip(request: Request) -> str:
 def build_limiter() -> Limiter:
     """Return a new in-memory limiter keyed by client IP (one per app)."""
     return Limiter(key_func=client_ip, storage_uri="memory://")
+
+
+class LimitedRouter(APIRouter):
+    """An ``APIRouter`` that rate limits every route registered on it (fail closed, D-23).
+
+    Forgetting a limit on a ``/v1`` route is therefore impossible: ``add_api_route`` wraps the
+    endpoint with ``limiter.limit(limit)`` before FastAPI sees it. The limit is a callable
+    evaluated per request, so building the router never reads the environment.
+
+    A handler registered here must declare a ``request: Request`` parameter; slowapi raises at
+    registration otherwise, which is the intended loud failure. Each route gets its own bucket
+    keyed by module and function name, so route function names must be unique within a module.
+    """
+
+    def __init__(self, limiter: Limiter, limit: Callable[[], str], **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._limiter = limiter
+        self._limit = limit
+
+    def add_api_route(self, path: str, endpoint: Callable[..., Any], **kwargs: Any) -> None:
+        super().add_api_route(path, self._limiter.limit(self._limit)(endpoint), **kwargs)

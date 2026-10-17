@@ -5,17 +5,19 @@ readiness registry, limiter and cache off ``app.state``. Strict ``Settings`` are
 only in the lifespan (a missing key stops startup with uvicorn exit code 3), never here.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from truthtrail.api.analyze import build_analyze_router
 from truthtrail.api.catchall import CatchAllMiddleware
 from truthtrail.api.health import build_health_router
-from truthtrail.api.limits import build_limiter
+from truthtrail.api.limits import LimitedRouter, build_limiter
 from truthtrail.api.problems import register_problem_handlers
+from truthtrail.api.v1 import build_v1_router
 from truthtrail.core.boot import get_boot_settings
 from truthtrail.core.config import get_settings
 from truthtrail.core.readiness import ReadinessRegistry
@@ -45,8 +47,13 @@ def register_default_checks(registry: ReadinessRegistry) -> None:
     """
 
 
-def create_app() -> FastAPI:
-    """Build a new application; two calls never share routes or state."""
+def create_app(
+    *, v1_registrars: Sequence[Callable[[LimitedRouter], None]] | None = None
+) -> FastAPI:
+    """Build a new application; two calls never share routes or state.
+
+    ``v1_registrars`` replaces the default ``V1_REGISTRARS`` list (used by tests).
+    """
     app = FastAPI(
         title="TruthTrail API",
         version="0.1.0",
@@ -62,6 +69,7 @@ def create_app() -> FastAPI:
     limiter = build_limiter()
     app.state.limiter = limiter
     app.include_router(build_analyze_router(limiter))
+    app.include_router(build_v1_router(limiter, v1_registrars))
     boot = get_boot_settings()
     # Ordering rule: the LAST middleware added is the OUTERMOST. The catch-all is added first
     # so it sits just inside CORSMiddleware; an unexpected error is then rendered as a 500
@@ -73,4 +81,12 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "HEAD", "OPTIONS"],
         allow_credentials=False,
     )
+    if boot.trust_proxy_headers:
+        # Added LAST, so outermost: it rewrites the client address before anything else sees
+        # it. Never set FORWARDED_ALLOW_IPS to "*" unless the container is reachable only
+        # through the proxy: a client could then supply its own X-Forwarded-For. The server
+        # must ALWAYS run with --no-proxy-headers (see truthtrail.core.boot): uvicorn's own
+        # handling is on by default for loopback peers and would bypass TRUST_PROXY_HEADERS.
+        trusted = [h.strip() for h in boot.forwarded_allow_ips.split(",") if h.strip()]
+        app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted)
     return app

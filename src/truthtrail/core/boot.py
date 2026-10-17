@@ -4,6 +4,15 @@
 GNews key is missing. That check stays in the lifespan (strict ``Settings``), which keeps
 ``uvicorn main:app`` exiting with code 3 and "Application startup failed" instead of
 failing during import. Error messages name the variable and the rule, never the value.
+
+Proxy trust (D-10). ``TRUST_PROXY_HEADERS`` (default false) and ``FORWARDED_ALLOW_IPS`` are the
+ONLY proxy-trust switches, because the server is ALWAYS started with ``--no-proxy-headers``.
+uvicorn's own proxy handling is on by default, trusts 127.0.0.1 and ::1 and reads the same
+``FORWARDED_ALLOW_IPS``; without the flag a spoofed ``X-Forwarded-For`` from a loopback peer
+would replace the client address before this application sees it, whatever
+``TRUST_PROXY_HEADERS`` says, and the per-IP rate limit could be bypassed. With the flag,
+uvicorn ignores ``FORWARDED_ALLOW_IPS`` and only the middleware ``create_app()`` adds (the
+same class uvicorn would use) acts on it.
 """
 
 from typing import Annotated
@@ -54,6 +63,10 @@ class BootSettings(BaseSettings):
 
     # NoDecode: a plain list[str] would demand JSON in the environment.
     cors_origins: Annotated[list[str], NoDecode] = []
+    # Trust X-Forwarded-For only when true and only from the peers in forwarded_allow_ips.
+    # The variable name FORWARDED_ALLOW_IPS deliberately matches the one uvicorn reads.
+    trust_proxy_headers: bool = False
+    forwarded_allow_ips: str = "127.0.0.1,::1"
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -81,6 +94,7 @@ def get_boot_settings() -> BootSettings:
     try:
         return BootSettings()
     except ValidationError as exc:
-        message = str(exc.errors(include_input=False, include_url=False)[0]["msg"])
-        rule = message.removeprefix("Value error, ")
-        raise ConfigurationError(f"Invalid configuration (CORS_ORIGINS: {rule})") from None
+        error = exc.errors(include_input=False, include_url=False)[0]
+        name = str(error["loc"][0]).upper() if error["loc"] else "CORS_ORIGINS"
+        rule = str(error["msg"]).removeprefix("Value error, ")
+        raise ConfigurationError(f"Invalid configuration ({name}: {rule})") from None
