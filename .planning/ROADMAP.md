@@ -68,7 +68,7 @@ Plans:
   4. `docker build` succeeds and the running container answers `/health` with 200, while `/ready` returns 503 whenever a registered dependency check fails (proved by a test with an injected failing check); the database check lands in Phase 3 and the model-artifact check in Phase 4.
   5. CORS accepts only configured origins, requests over the rate limit receive 429, repeated reads are served from a TTL cache, and outbound HTTP uses timeouts and bounded retries (each proven by a test, including a mocked slow or failing upstream that stops after the retry bound).
 
-**Plans**: 3/12 plans executed
+**Plans**: 4/12 plans executed
 
 Plans:
 **Wave 1**
@@ -81,7 +81,7 @@ Plans:
 - [x] 02-03-PLAN.md — Wave 3: pyproject.toml, uv.lock on Python 3.13, serving/dev/train groups, CI copy-guard and tests on uv (ENG-02, ENG-04)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-04-PLAN.md — Wave 4: ruff and mypy strict to green (mechanical format commit, hand fixes, types) (ENG-04)
+- [x] 02-04-PLAN.md — Wave 4: ruff and mypy strict to green (mechanical format commit, hand fixes, types) (ENG-04)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-05-PLAN.md — Wave 5: create_app() factory, BootSettings, configured-origin CORS, catch-all inside CORS, Problem.synthetic Literal[False] (ENG-06)
@@ -190,7 +190,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 (Phases 3 and 4 may 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure & Honest Foundation | 6/6 | Complete    | 2026-10-17 |
-| 2. Engineering Baseline | 3/12 | In Progress | - |
+| 2. Engineering Baseline | 4/12 | In Progress | - |
 | 3. Real Propagation Data | 0/TBD | Not started | - |
 | 4. Baseline Detection & Evaluation | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
