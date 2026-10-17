@@ -13,6 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
+from truthtrail.api import analyze
 from truthtrail.api.analyze import build_analyze_router
 from truthtrail.api.cache import AnalyzeCache
 from truthtrail.api.catchall import CatchAllMiddleware
@@ -37,7 +38,12 @@ APP_DESCRIPTION = (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    get_settings()  # fail fast: a missing key stops startup before any upstream call
+    settings = get_settings()  # fail fast: a missing key stops startup before any upstream call
+    if settings.demo_mode:
+        # Fail fast on a corrupt fixture (D-19, IN-02): a cascade violation raises here and
+        # uvicorn exits with "Application startup failed". Called through the module so a
+        # patched loader is honoured; with demo mode off nothing is loaded.
+        analyze.load_demo_fixture()
     yield
 
 

@@ -15,8 +15,9 @@ from slowapi import Limiter
 
 from truthtrail.api.cache import AnalyzeCache
 from truthtrail.api.problems import PROBLEM_RESPONSES
+from truthtrail.core.cascade import cascade_events_from, validate_cascade
 from truthtrail.core.config import Settings, get_settings
-from truthtrail.schemas.models import AnalyzeResponse, LiveResult, Meta
+from truthtrail.schemas.models import AnalyzeResponse, DemoResult, LiveResult, Meta
 from truthtrail.services.gnews import fetch_news
 from truthtrail.services.keyword_baseline import analyze_risk
 
@@ -42,11 +43,17 @@ def load_demo_fixture() -> AnalyzeResponse:
     """Load and validate the committed synthetic demo fixture.
 
     Refuses (RuntimeError, rendered as a generic 500) any fixture whose meta is not
-    labelled synthetic, so unlabelled demo data is never served.
+    labelled synthetic, so unlabelled demo data is never served. Every result's events must
+    also satisfy the cascade invariants (``CascadeError`` otherwise, also a generic 500; in
+    demo mode the lifespan loads the fixture, so startup fails). The events are validated,
+    never reordered: the served body stays equal to the committed fixture (D-19).
     """
     fixture = AnalyzeResponse.model_validate_json(FIXTURE_PATH.read_text(encoding="utf-8"))
     if fixture.meta.synthetic is not True or fixture.meta.source_status != "fixture":
         raise RuntimeError("demo fixture is not labelled synthetic")
+    for result in fixture.results:
+        if isinstance(result, DemoResult):
+            validate_cascade(cascade_events_from(result.events))
     return fixture
 
 
