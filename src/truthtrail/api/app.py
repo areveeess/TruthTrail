@@ -13,9 +13,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from truthtrail.api.analyze import build_analyze_router
 from truthtrail.api.catchall import CatchAllMiddleware
+from truthtrail.api.health import build_health_router
 from truthtrail.api.problems import register_problem_handlers
 from truthtrail.core.boot import get_boot_settings
 from truthtrail.core.config import get_settings
+from truthtrail.core.readiness import ReadinessRegistry
 
 APP_DESCRIPTION = (
     "Prototype under reconstruction. Labels the most recent matching news headline "
@@ -34,6 +36,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
+def register_default_checks(registry: ReadinessRegistry) -> None:
+    """Extension hook: register the default dependency checks on a new registry.
+
+    Empty in Phase 2. Phase 3 registers the ``database`` check and Phase 4 the ``model``
+    check here, so ``/ready`` starts failing closed when either dependency is unavailable.
+    """
+
+
 def create_app() -> FastAPI:
     """Build a new application; two calls never share routes or state."""
     app = FastAPI(
@@ -43,6 +53,10 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     register_problem_handlers(app)
+    registry = ReadinessRegistry()
+    app.state.readiness = registry
+    register_default_checks(registry)
+    app.include_router(build_health_router())
     app.include_router(build_analyze_router())
     boot = get_boot_settings()
     # Ordering rule: the LAST middleware added is the OUTERMOST. The catch-all is added first

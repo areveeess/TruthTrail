@@ -131,3 +131,22 @@ class Problem(BaseModel):
     )
     source_status: str = Field(description="Provider status, for example upstream_error.")
     data_as_of: None = Field(default=None, description="Always null: an error carries no data.")
+
+
+class Health(BaseModel):
+    """Liveness answer: the process is serving requests."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["ok"] = Field(description="Always ok while the process serves requests.")
+
+
+class Ready(BaseModel):
+    """Readiness answer: every registered dependency check passed."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["ready"] = Field(description="Always ready; a failed check answers 503.")
+    checks: dict[str, Literal["ok"]] = Field(
+        description="Registered dependency checks by name, each ok. Empty when none is registered."
+    )

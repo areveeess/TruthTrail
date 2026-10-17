@@ -61,6 +61,13 @@ PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
 }
 
 
+# The /ready 503 (a failed dependency check) never sends Retry-After, so unlike the provider
+# 503 above it declares no headers.
+READINESS_503: dict[str, Any] = _problem_declaration(
+    "A registered dependency check failed (problem details)."
+)
+
+
 async def _upstream_error_handler(request: Request, exc: UpstreamError) -> JSONResponse:
     """Render an adapter failure; 503s carry Retry-After."""
     body = problem_body(
