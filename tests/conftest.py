@@ -7,6 +7,7 @@ inside ``client_factory`` so collection never imports them and a future package
 move touches this one file.
 """
 
+import os
 import random
 from collections.abc import Callable, Iterator
 from typing import Any, Optional
@@ -16,6 +17,10 @@ import responses
 
 from config import Settings, get_settings
 
+# Names the module that owns the route-level callables load_demo_fixture,
+# FIXTURE_PATH and analyze_risk, for string patch targets. Plan 02-02 (package
+# move) and plan 02-05 (create_app refactor) each change this single line.
+APP_MODULE = "main"
 FAKE_KEY = "FAKE_TEST_KEY"
 GNEWS_URL = "https://gnews.io/api/v4/search"
 ENV_NAMES = (
@@ -80,6 +85,28 @@ def client_factory(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Any]:
 def client(client_factory: Callable[..., Any]) -> Any:
     """TestClient that returns 500 responses instead of raising server errors."""
     return client_factory()
+
+
+@pytest.fixture
+def app_module() -> str:
+    """Module name that string patch targets must use (see ``APP_MODULE``)."""
+    return APP_MODULE
+
+
+@pytest.fixture
+def subprocess_env() -> dict[str, str]:
+    """Return a new minimal environment dict for subprocess-based tests.
+
+    SYSTEMROOT is passed through when present: without it asyncio cannot
+    initialise Winsock on Windows (WinError 10106).
+    """
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+    if "SYSTEMROOT" in os.environ:
+        env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+    return env
 
 
 @pytest.fixture

@@ -132,14 +132,14 @@ def test_missing_configuration_is_not_configured(client_factory, mock_gnews) -> 
 
 
 def test_unexpected_error_is_generic_500(
-    client, monkeypatch, mock_gnews, gnews_url, gnews_article, gnews_payload
+    client, monkeypatch, mock_gnews, gnews_url, gnews_article, gnews_payload, app_module
 ) -> None:
     mock_gnews.get(gnews_url, json=gnews_payload(gnews_article()))
 
     def boom(text: str) -> str:
         raise RuntimeError("internal-detail-marker")
 
-    monkeypatch.setattr("main.analyze_risk", boom)
+    monkeypatch.setattr(f"{app_module}.analyze_risk", boom)
 
     response = client.get("/analyze", params={"query": "x"})
 

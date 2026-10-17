@@ -149,6 +149,7 @@ def test_fixture_never_served_when_demo_mode_off(
     gnews_article,
     demo_mode,
     register,
+    app_module,
 ) -> None:
     """T-01-24: with DEMO_MODE unset or false the fixture loader is never reached."""
     calls: list[str] = []
@@ -157,7 +158,7 @@ def test_fixture_never_served_when_demo_mode_off(
         calls.append("called")
         raise RuntimeError("fixture loader must not be reached")
 
-    monkeypatch.setattr("main.load_demo_fixture", stub)
+    monkeypatch.setattr(f"{app_module}.load_demo_fixture", stub)
     register(mock_gnews, gnews_url, gnews_payload, gnews_article)
     client = client_factory(demo_mode=demo_mode)
 
@@ -169,14 +170,16 @@ def test_fixture_never_served_when_demo_mode_off(
     assert synthetic is False
 
 
-def test_demo_mode_refuses_unlabelled_fixture(client_factory, monkeypatch, tmp_path) -> None:
+def test_demo_mode_refuses_unlabelled_fixture(
+    client_factory, monkeypatch, tmp_path, app_module
+) -> None:
     """T-01-27: a fixture that is not labelled synthetic is never served."""
     edited = json.loads(FIXTURE_FILE.read_text(encoding="utf-8"))
     edited["meta"]["synthetic"] = False
     path = tmp_path / "demo_analyze.json"
     path.write_text(json.dumps(edited), encoding="utf-8")
-    main = importlib.import_module("main")
-    monkeypatch.setattr("main.FIXTURE_PATH", path)
+    main = importlib.import_module(app_module)
+    monkeypatch.setattr(f"{app_module}.FIXTURE_PATH", path)
     main.load_demo_fixture.cache_clear()
     try:
         client = client_factory(gnews_api_key=None, demo_mode="true")
