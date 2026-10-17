@@ -113,11 +113,12 @@ def test_entry_is_a_hit_at_599_seconds_and_a_miss_at_601(
 
 
 @pytest.mark.parametrize(
-    ("failure", "expected_status"),
+    ("failure", "expected_status", "failed_attempts"),
     [
-        pytest.param({"json": {"errors": ["x"]}, "status": 401}, 502, id="401"),
-        pytest.param({"json": {"errors": ["x"]}, "status": 503}, 502, id="503"),
-        pytest.param({"body": requests.exceptions.ConnectTimeout()}, 503, id="timeout"),
+        pytest.param({"json": {"errors": ["x"]}, "status": 401}, 502, 1, id="401"),
+        # D-12: a transient failure is retried up to 3 attempts before it is reported.
+        pytest.param({"json": {"errors": ["x"]}, "status": 503}, 502, 3, id="503"),
+        pytest.param({"body": requests.exceptions.ConnectTimeout()}, 503, 3, id="timeout"),
     ],
 )
 def test_errors_are_never_cached(
@@ -128,6 +129,7 @@ def test_errors_are_never_cached(
     gnews_article,
     failure: dict[str, Any],
     expected_status: int,
+    failed_attempts: int,
 ) -> None:
     client = make_client()
     mock_gnews.get(gnews_url, **failure)
@@ -141,7 +143,7 @@ def test_errors_are_never_cached(
     assert recovered.status_code == 200
     assert recovered.headers["x-cache"] == "miss"
     assert recovered.json()["results"]
-    assert len(mock_gnews.calls) == 2
+    assert len(mock_gnews.calls) == failed_attempts + 1
 
 
 def test_honest_empty_result_is_cached(make_client, mock_gnews, gnews_url) -> None:

@@ -55,6 +55,14 @@ def network_guard(monkeypatch: pytest.MonkeyPatch) -> Iterator[responses.Request
     get_settings.cache_clear()
 
 
+@pytest.fixture(autouse=True)
+def no_real_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the adapter's retry backoff a no-op so no test ever sleeps for real (D-12)."""
+    from truthtrail.services import gnews
+
+    monkeypatch.setattr(gnews, "_sleep", lambda seconds: None)
+
+
 @pytest.fixture
 def mock_gnews(network_guard: responses.RequestsMock) -> responses.RequestsMock:
     """Return the active mock so tests can register GNews responses on it."""
