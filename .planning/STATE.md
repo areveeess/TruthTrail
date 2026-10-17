@@ -3,13 +3,13 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 2
 current_phase_name: Engineering Baseline
-current_plan: 7
+current_plan: 8
 status: executing
-stopped_at: Completed 02-06-PLAN.md
-last_updated: "2026-10-17T18:39:04.756Z"
+stopped_at: Completed 02-07-PLAN.md
+last_updated: "2026-10-17T18:46:24.997Z"
 last_activity: 2026-10-17
 last_activity_desc: Phase 2 plans verified by plan checker; owner review pending
-state_head: 4e283775e872d153138ae8107ee1437fc8404c1d
+state_head: ed335cf3a778324ee3504ddd96915a77da9712f9
 progress:
   total_phases: 6
   completed_phases: 1
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 2 — Engineering Baseline
-Current Plan: 7
+Current Plan: 8
 Total Plans in Phase: 12
 Status: Ready to execute
 Last activity: 2026-10-17 — Phase 1 complete, transitioned to Phase 2
@@ -71,6 +71,7 @@ Progress: [██░░░░░░░░] 17%
 | Phase 2 P04 | 20min | 3 tasks | 36 files |
 | Phase 02 P05 | 25min | 2 tasks | 14 files |
 | Phase 02 P06 | 15min | 2 tasks | 7 files |
+| Phase 02 P07 | 30min | 2 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,7 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-05: Generic Exception handler removed; CatchAllMiddleware inside CORS renders the identical 500 problem+json so error responses carry CORS headers
 - [Phase 02]: 02-05: CORS_ORIGINS must be exact scheme://host[:port]; unset means no cross-origin access; invalid value fails create_app() with a ConfigurationError that omits the value
 - [Phase 02]: 02-06: /ready names only failed check names in the problem detail and sends no Retry-After; registry on app.state.readiness with register_default_checks hook
+- [Phase 02]: 02-07: slowapi used through decorators only; LimitedRouter makes /v1 limits fail closed; server always started with --no-proxy-headers so TRUST_PROXY_HEADERS/FORWARDED_ALLOW_IPS are the only proxy-trust switches (real-uvicorn negative control proves the default hole)
 
 ### Pending Todos
 
@@ -123,8 +125,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-17T18:39:04.687Z
-Stopped at: Completed 02-06-PLAN.md
+Last session: 2026-10-17T18:46:24.922Z
+Stopped at: Completed 02-07-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
