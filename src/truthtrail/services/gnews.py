@@ -78,7 +78,7 @@ def _retry_after(resp: requests.Response) -> int:
     return DEFAULT_RETRY_AFTER
 
 
-def fetch_news(query: str, api_key: str) -> list[dict]:
+def fetch_news(query: str, api_key: str) -> list[dict[str, str]]:
     """Return ``[{"title", "source", "publishedAt"}]`` for the query.
 
     The credential travels only in the ``X-Api-Key`` request header, never in the
@@ -93,10 +93,11 @@ def fetch_news(query: str, api_key: str) -> list[dict]:
         # Never sent: requests would fail locally and the failure would look like a provider outage.
         raise ConfigurationError("GNEWS_API_KEY is not a valid header value.")
 
+    params: dict[str, str | int] = {"q": query, "lang": "en", "max": 1}
     try:
         resp = requests.get(
             GNEWS_URL,
-            params={"q": query, "lang": "en", "max": 1},
+            params=params,
             headers={"X-Api-Key": api_key},
             timeout=TIMEOUT,
             # A redirect would re-send X-Api-Key to wherever it points (requests strips only

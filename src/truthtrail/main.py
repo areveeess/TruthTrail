@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -16,7 +17,7 @@ from truthtrail.services.keyword_baseline import analyze_risk
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     get_settings()  # fail fast: a missing key stops startup before any upstream call
     yield
 

@@ -27,7 +27,7 @@ from truthtrail.schemas.models import Problem
 logger = logging.getLogger(__name__)
 
 
-def _problem_declaration(description: str, **extra: Any) -> dict:
+def _problem_declaration(description: str, **extra: Any) -> dict[str, Any]:
     """OpenAPI response entry: the Problem model plus explicit problem+json content.
 
     Keep both: a bare ``content`` entry without the model renders an empty schema.
@@ -134,8 +134,10 @@ def _problem_only_openapi(app: FastAPI) -> Callable[[], dict[str, Any]]:
 def register_problem_handlers(app: FastAPI) -> None:
     """Install every problem+json exception handler on the app."""
     app.openapi = _problem_only_openapi(app)  # type: ignore[method-assign]
-    app.add_exception_handler(UpstreamError, _upstream_error_handler)
-    app.add_exception_handler(RequestValidationError, _validation_error_handler)
-    app.add_exception_handler(StarletteHTTPException, _http_exception_handler)
-    app.add_exception_handler(ConfigurationError, _configuration_error_handler)
-    app.add_exception_handler(Exception, _unexpected_error_handler)
+    # Decorator form: ``add_exception_handler`` is typed for ``Exception`` handlers only (variance),
+    # ``exception_handler`` is not. The registration order is behaviour: keep it.
+    app.exception_handler(UpstreamError)(_upstream_error_handler)
+    app.exception_handler(RequestValidationError)(_validation_error_handler)
+    app.exception_handler(StarletteHTTPException)(_http_exception_handler)
+    app.exception_handler(ConfigurationError)(_configuration_error_handler)
+    app.exception_handler(Exception)(_unexpected_error_handler)

@@ -9,6 +9,7 @@ Nothing here puts a credential, a provider URL, a query string or an exception
 message into a body or a log line.
 """
 
+from collections.abc import Mapping
 from http import HTTPStatus
 from typing import Any
 
@@ -43,7 +44,7 @@ class UpstreamError(Exception):
 
 def problem_body(
     status: int, detail: str, code: str, *, source_status: str, **extensions: Any
-) -> dict:
+) -> dict[str, Any]:
     """Build an RFC 9457 body with the provenance members always present."""
     return {
         "type": "about:blank",
@@ -58,6 +59,8 @@ def problem_body(
     }
 
 
-def problem_response(status: int, body: dict, headers: dict | None = None) -> JSONResponse:
+def problem_response(
+    status: int, body: dict[str, Any], headers: Mapping[str, str] | None = None
+) -> JSONResponse:
     """Render a problem body with the problem+json media type."""
     return JSONResponse(body, status_code=status, media_type=PROBLEM_MEDIA_TYPE, headers=headers)
