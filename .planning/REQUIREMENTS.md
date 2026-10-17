@@ -20,7 +20,7 @@ Requirements for the first shippable portfolio release. Each maps to a roadmap p
 
 - [x] **ENG-01**: Code lives in a `src/truthtrail` package (api, services, schemas, core); the legacy `spread_simulator.py` and `users.py` are removed from the live path
 - [x] **ENG-02**: Dependencies are pinned with a uv lockfile on Python 3.13, with training and serving requirements split
-- [ ] **ENG-03**: A pytest + hypothesis suite covers the API and the invariants (events ordered by `observed_at`; a child is never earlier than its parent), with coverage reported
+- [x] **ENG-03**: A pytest + hypothesis suite covers the API and the invariants (events ordered by `observed_at`; a child is never earlier than its parent), with coverage reported
 - [ ] **ENG-04**: GitHub Actions CI runs ruff, mypy, pytest, pip-audit and a secret scan on every push
 - [ ] **ENG-05**: A Dockerfile builds and runs the service; `/health` reports liveness and `/ready` returns 503 when the model artifact or database is unavailable
 - [x] **ENG-06**: CORS is restricted to configured origins, routes are rate limited, repeated reads are TTL-cached, and outbound HTTP uses timeouts and bounded retries
@@ -111,7 +111,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-06 | Phase 1 | Complete |
 | ENG-01 | Phase 2 | Complete |
 | ENG-02 | Phase 2 | Complete |
-| ENG-03 | Phase 2 | Pending |
+| ENG-03 | Phase 2 | Complete |
 | ENG-04 | Phase 2 | Pending |
 | ENG-05 | Phase 2 | Pending |
 | ENG-06 | Phase 2 | Complete |
