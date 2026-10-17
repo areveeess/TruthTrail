@@ -23,7 +23,7 @@ Requirements for the first shippable portfolio release. Each maps to a roadmap p
 - [ ] **ENG-03**: A pytest + hypothesis suite covers the API and the invariants (events ordered by `observed_at`; a child is never earlier than its parent), with coverage reported
 - [ ] **ENG-04**: GitHub Actions CI runs ruff, mypy, pytest, pip-audit and a secret scan on every push
 - [ ] **ENG-05**: A Dockerfile builds and runs the service; `/health` reports liveness and `/ready` returns 503 when the model artifact or database is unavailable
-- [ ] **ENG-06**: CORS is restricted to configured origins, routes are rate limited, repeated reads are TTL-cached, and outbound HTTP uses timeouts and bounded retries
+- [x] **ENG-06**: CORS is restricted to configured origins, routes are rate limited, repeated reads are TTL-cached, and outbound HTTP uses timeouts and bounded retries
 
 ### Data (DATA)
 
@@ -114,7 +114,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENG-03 | Phase 2 | Pending |
 | ENG-04 | Phase 2 | Pending |
 | ENG-05 | Phase 2 | Pending |
-| ENG-06 | Phase 2 | Pending |
+| ENG-06 | Phase 2 | Complete |
 | DATA-01 | Phase 3 | Pending |
 | DATA-02 | Phase 3 | Pending |
 | DATA-03 | Phase 3 | Pending |
