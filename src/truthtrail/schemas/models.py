@@ -126,7 +126,7 @@ class Problem(BaseModel):
     errors: list[FieldIssue] | None = Field(
         default=None, description="Request-validation issues, present on 422 responses."
     )
-    synthetic: bool = Field(
+    synthetic: Literal[False] = Field(
         default=False, description="Always false: an error carries no demo data."
     )
     source_status: str = Field(description="Provider status, for example upstream_error.")

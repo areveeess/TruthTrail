@@ -104,3 +104,16 @@ def test_problem_model_shape() -> None:
         Problem.model_validate({**body, "foo": "bar"})
     with pytest.raises(ValidationError):
         Problem.model_validate({**body, "data_as_of": "2026-10-11T10:02:11Z"})
+
+
+def test_problem_synthetic_is_literal_false() -> None:
+    required = {
+        "title": "Bad Gateway",
+        "status": 502,
+        "detail": "The news provider rejected our credentials.",
+        "code": "upstream_unauthorized",
+        "source_status": "upstream_error",
+    }
+    assert Problem.model_validate(required).synthetic is False
+    with pytest.raises(ValidationError):
+        Problem.model_validate({**required, "synthetic": True})

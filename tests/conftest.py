@@ -9,7 +9,7 @@ move touches this one file.
 
 import os
 import random
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
 import pytest
@@ -18,9 +18,9 @@ import responses
 from truthtrail.core.config import Settings, get_settings
 
 # Names the module that owns the route-level callables load_demo_fixture,
-# FIXTURE_PATH and analyze_risk, for string patch targets. Plan 02-02 (package
-# move) and plan 02-05 (create_app refactor) each change this single line.
-APP_MODULE = "truthtrail.main"
+# FIXTURE_PATH and analyze_risk, for string patch targets (the create_app split
+# moved them out of truthtrail.main into the analyze router module).
+APP_MODULE = "truthtrail.api.analyze"
 FAKE_KEY = "FAKE_TEST_KEY"
 GNEWS_URL = "https://gnews.io/api/v4/search"
 ENV_NAMES = (
@@ -67,17 +67,31 @@ def client_factory(monkeypatch: pytest.MonkeyPatch) -> Callable[..., Any]:
         gnews_api_key: str | None = FAKE_KEY,
         demo_mode: str | None = None,
         raise_server_exceptions: bool = False,
+        env: Mapping[str, str] | None = None,
+        client: tuple[str, int] | None = None,
+        app_kwargs: Mapping[str, Any] | None = None,
     ) -> Any:
+        """Set the environment, then build a new app with ``create_app()`` per call.
+
+        ``env`` sets extra environment variables, ``client`` is the (host, port) the
+        TestClient reports as the peer address and ``app_kwargs`` is forwarded to
+        ``create_app``, so later plans never edit this fixture for a new setting.
+        """
         from fastapi.testclient import TestClient
 
-        import truthtrail.main as main
+        from truthtrail.api.app import create_app
 
         if gnews_api_key is not None:
             monkeypatch.setenv("GNEWS_API_KEY", gnews_api_key)
         if demo_mode is not None:
             monkeypatch.setenv("DEMO_MODE", demo_mode)
+        for name, value in (env or {}).items():
+            monkeypatch.setenv(name, value)
         get_settings.cache_clear()
-        return TestClient(main.app, raise_server_exceptions=raise_server_exceptions)
+        app = create_app(**(app_kwargs or {}))
+        if client is None:
+            return TestClient(app, raise_server_exceptions=raise_server_exceptions)
+        return TestClient(app, raise_server_exceptions=raise_server_exceptions, client=client)
 
     return make
 

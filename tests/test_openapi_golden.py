@@ -70,6 +70,14 @@ def test_phase1_contract_is_preserved(client: Any) -> None:
     assert not differing, f"Phase 1 contract changed in top-level sections: {differing}"
 
 
+def test_problem_synthetic_is_const_false(client: Any) -> None:
+    """Declared D-20 exception: Problem.synthetic is Literal[False], so the schema has const."""
+    current = client.get("/openapi.json").json()
+    synthetic = current["components"]["schemas"]["Problem"]["properties"]["synthetic"]
+    assert synthetic["const"] is False
+    assert synthetic["default"] is False
+
+
 def test_only_declared_additions_exist(client: Any) -> None:
     current = client.get("/openapi.json").json()
     base = load_golden()
