@@ -1,4 +1,6 @@
-# CI: copy guard, secret scan and tests on every push and pull request; installs use uv with the committed uv.lock (Phase 2). Plan 02-12 adds lint, typecheck, audit and docker jobs.
+# CI on every push and pull request, seven jobs: copy-guard, gitleaks, tests (with coverage gate), lint, typecheck,
+# audit (pip-audit against the exported lock) and docker (build, run with DEMO_MODE=true, probe the endpoints).
+# Installs use uv with the committed uv.lock (Phase 2).
 # Third-party actions are pinned by full commit SHA with the version in a trailing comment (D-20).
 name: ci
 
@@ -84,4 +86,96 @@ jobs:
           python-version: "3.13"
           enable-cache: true
       - run: uv sync --locked
-      - run: uv run --locked pytest -q
+      # --cov enforces [tool.coverage.report] fail_under from pyproject.toml (D-15).
+      - run: uv run --locked pytest --cov --hypothesis-profile=ci -q
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.13.1"
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv lock --check
+      - run: uv run --locked ruff check .
+      - run: uv run --locked ruff format --check .
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.13.1"
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run --locked mypy
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.13.1"
+          python-version: "3.13"
+          enable-cache: true
+      - run: uv sync --locked
+      # The audit covers the whole locked closure, hashes included. A new advisory turns this job red; handle it
+      # with `--ignore-vuln {ID}` plus a dated comment naming the advisory and why it is not exploitable here,
+      # never by skipping the job.
+      - name: Export the locked dependencies
+        run: uv export --locked --no-emit-project --all-groups --format requirements-txt -o "$RUNNER_TEMP/audit.txt"
+      - name: Audit the exported lock
+        run: uv run --locked pip-audit -r "$RUNNER_TEMP/audit.txt" --require-hashes --disable-pip --progress-spinner off
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image
+        run: docker build -t truthtrail:ci .
+      # DEMO_MODE=true serves the labelled synthetic fixture, so no key or secret is needed.
+      - name: Start the container
+        run: docker run -d -e DEMO_MODE=true -p 8000:8000 truthtrail:ci > "$RUNNER_TEMP/container_id"
+      - name: Probe /health
+        run: curl -fsS --retry 15 --retry-connrefused --retry-delay 1 http://127.0.0.1:8000/health
+      - name: Probe /ready
+        run: curl -fsS http://127.0.0.1:8000/ready
+      - name: Probe /analyze (synthetic demo data)
+        run: |
+          body=$(curl -fsS "http://127.0.0.1:8000/analyze?query=ci")
+          printf '%s\n' "$body" | head -c 300
+          grep -q '"synthetic":true' <<< "$body"
+      - name: Assert non-root user and no legacy or dev modules
+        run: |
+          container=$(cat "$RUNNER_TEMP/container_id")
+          uid=$(docker exec "$container" id -u)
+          echo "container uid: $uid"
+          test "$uid" != "0"
+          docker exec "$container" python -I -c "import importlib.util as u, sys; bad = [n for n in ('spread_simulator', 'users', 'risk_analyzer', 'pytest') if u.find_spec(n) is not None]; print('importable:', bad); sys.exit(1 if bad else 0)"
+      # Runs even after a failure, prints the logs and stops the container; a failure above still fails the job.
+      - name: Container logs and cleanup
+        if: always()
+        run: |
+          if [ -s "$RUNNER_TEMP/container_id" ]; then
+            container=$(cat "$RUNNER_TEMP/container_id")
+            docker logs "$container" || true
+            docker stop "$container" || true
+          fi

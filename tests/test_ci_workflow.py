@@ -12,8 +12,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
-# Plan 02-12 extends this one constant when it adds jobs.
-EXPECTED_JOBS = {"copy-guard", "gitleaks", "tests"}
+EXPECTED_JOBS = {"copy-guard", "gitleaks", "tests", "lint", "typecheck", "audit", "docker"}
 FLOOR = "a5dd8257e920923677c60e70611a6f36d87747b2"
 USES_LINE = re.compile(r"^\s*-?\s*uses:\s*(\S+)(.*)$")
 PINNED = re.compile(r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
@@ -78,7 +77,7 @@ def test_checkouts_do_not_persist_credentials() -> None:
             if str(step.get("uses", "")).startswith("actions/checkout@"):
                 checkouts += 1
                 assert step["with"]["persist-credentials"] is False, name
-    assert checkouts >= 3
+    assert checkouts == len(EXPECTED_JOBS)
 
 
 def test_no_secrets_are_referenced() -> None:
@@ -97,7 +96,7 @@ def test_gitleaks_job_is_intact() -> None:
 
 
 def test_python_jobs_install_with_locked_uv() -> None:
-    for name in ("copy-guard", "tests"):
+    for name in ("copy-guard", "tests", "lint", "typecheck", "audit"):
         steps = _steps(name)
         setup = [s for s in steps if str(s.get("uses", "")).startswith("astral-sh/setup-uv@")]
         assert len(setup) == 1, name
@@ -105,4 +104,69 @@ def test_python_jobs_install_with_locked_uv() -> None:
         assert any("uv sync --locked" in str(s.get("run", "")) for s in steps), name
         text = _step_text(name)
         assert "pip install" not in text, name
-        assert "requirements" not in text, name
+        assert "requirements.txt" not in text, name
+
+
+def _run_text(job: str) -> str:
+    return "\n".join(str(s.get("run", "")) for s in _steps(job))
+
+
+def test_lint_job_runs_ruff_and_the_lock_check() -> None:
+    text = _run_text("lint")
+    assert "ruff check" in text
+    assert "ruff format --check" in text
+    assert "uv lock --check" in text
+
+
+def test_typecheck_job_runs_mypy() -> None:
+    assert "mypy" in _run_text("typecheck")
+
+
+def test_audit_job_audits_the_exported_lock_with_hashes() -> None:
+    text = _run_text("audit")
+    assert "uv export" in text
+    assert "--locked" in text
+    assert "pip-audit" in text
+    assert "--require-hashes" in text
+
+
+def test_tests_job_gates_coverage_with_the_ci_profile() -> None:
+    text = _run_text("tests")
+    assert "--cov" in text
+    assert "--hypothesis-profile=ci" in text
+
+
+def test_docker_job_builds_runs_and_probes_the_image() -> None:
+    text = _run_text("docker")
+    assert "docker build" in text
+    assert "DEMO_MODE=true" in text
+    for path in ("/health", "/ready", "/analyze"):
+        assert path in text, path
+    assert '"synthetic":true' in text
+    assert "id -u" in text
+    for module in ("spread_simulator", "users", "risk_analyzer", "pytest"):
+        assert module in text, module
+
+
+def test_docker_job_always_prints_logs_and_stops_the_container() -> None:
+    cleanup = [s for s in _steps("docker") if str(s.get("if", "")).strip() == "always()"]
+    assert len(cleanup) == 1
+    assert "docker logs" in cleanup[0]["run"]
+    assert "docker stop" in cleanup[0]["run"]
+    # The cleanup step is the last one, so it never hides a failure of an earlier step.
+    assert _steps("docker")[-1].get("if") == "always()"
+
+
+def test_docker_job_needs_no_uv_and_no_secret_environment() -> None:
+    text = _step_text("docker")
+    assert "setup-uv" not in text
+    assert "uv sync" not in text
+    assert "GNEWS_API_KEY" not in text
+
+
+def test_no_job_skips_failures() -> None:
+    text = _text()
+    assert "continue-on-error" not in text
+    # A pip-audit exception is allowed only with a dated comment naming the advisory (T-02-41).
+    if "--ignore-vuln" in _run_text("audit"):
+        assert re.search(r"#.*\d{4}-\d{2}-\d{2}", text)
