@@ -170,3 +170,29 @@ def test_openapi_health_and_ready_schemas_are_typed(client: Any) -> None:
     assert schemas["Ready"]["properties"]["status"]["const"] == "ready"
     assert set(schemas["Ready"]["properties"]) == {"status", "checks"}
     assert schemas["Ready"]["additionalProperties"] is False
+
+
+def test_ready_with_a_hung_check_is_503_and_does_not_block_other_endpoints(client: Any) -> None:
+    """A check that never answers fails closed; /health and a repeat /ready stay fast."""
+    import threading
+    import time
+
+    from truthtrail.core.readiness import ReadinessRegistry
+
+    release = threading.Event()
+    client.app.state.readiness = ReadinessRegistry(timeout=0.2)
+    _register(client, "database", lambda: release.wait(timeout=30))
+    try:
+        first = client.get("/ready")
+        started = time.monotonic()
+        second = client.get("/ready")
+        health = client.get("/health")
+        elapsed = time.monotonic() - started
+    finally:
+        release.set()
+
+    assert first.status_code == 503
+    assert first.json()["detail"] == "Not ready: database."
+    assert second.status_code == 503
+    assert health.status_code == 200
+    assert elapsed < 0.5

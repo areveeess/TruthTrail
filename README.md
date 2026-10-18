@@ -28,7 +28,7 @@ What `data_as_of` means:
 ### `GET /health` and `GET /ready`
 
 - `GET /health` is liveness: `{"status":"ok"}` while the process runs. It does not check dependencies.
-- `GET /ready` is readiness: `{"status":"ready","checks":{}}` when every registered check passes, otherwise 503 as `application/problem+json` naming the failed checks only. No checks are registered yet; the database check arrives in Phase 3 and the model check in Phase 4.
+- `GET /ready` is readiness: `{"status":"ready","checks":{}}` when every registered check passes, otherwise 503 as `application/problem+json` naming the failed checks only. A check that does not answer within 2 seconds counts as failed. No checks are registered yet; the database check arrives in Phase 3 and the model check in Phase 4.
 
 ### The `/v1` mount point
 

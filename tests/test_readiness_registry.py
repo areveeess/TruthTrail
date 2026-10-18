@@ -5,6 +5,8 @@ tests prove it never reaches the log, only the check name and exception class na
 """
 
 import logging
+import threading
+import time
 
 import pytest
 
@@ -119,3 +121,85 @@ def test_check_state_is_re_evaluated_on_every_run() -> None:
 
     assert first == {"x": False}
     assert second == {"x": True}
+
+
+def test_hung_check_fails_closed_within_the_timeout(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG)
+    release = threading.Event()
+    registry = ReadinessRegistry(timeout=0.2)
+    registry.register("database", lambda: release.wait(timeout=30) and True)
+    registry.register("model", lambda: True)
+
+    started = time.monotonic()
+    try:
+        result = registry.run()
+        elapsed = time.monotonic() - started
+    finally:
+        release.set()
+
+    assert result == {"database": False, "model": True}
+    assert elapsed < 2.0
+    assert "database" in caplog.text
+    assert "timeout" in caplog.text
+
+
+def test_a_still_running_check_is_not_started_twice_and_later_callers_fail_at_once() -> None:
+    release = threading.Event()
+    starts: list[int] = []
+
+    def hung() -> bool:
+        starts.append(1)
+        release.wait(timeout=30)
+        return True
+
+    registry = ReadinessRegistry(timeout=0.2)
+    registry.register("database", hung)
+    try:
+        registry.run()  # waits out the deadline once
+        started = time.monotonic()
+        later = [registry.run() for _ in range(20)]
+        elapsed = time.monotonic() - started
+    finally:
+        release.set()
+
+    assert all(r == {"database": False} for r in later)
+    assert len(starts) == 1
+    assert elapsed < 0.5
+
+
+def test_check_recovers_once_the_hung_run_finishes() -> None:
+    release = threading.Event()
+    registry = ReadinessRegistry(timeout=0.1)
+    registry.register("database", lambda: release.wait(timeout=30))
+    first = registry.run()
+    release.set()
+    for thread in threading.enumerate():
+        if thread.name == "readiness-database":
+            thread.join(timeout=5)
+
+    second = registry.run()
+
+    assert first == {"database": False}
+    assert second == {"database": True}
+
+
+def test_concurrent_callers_share_one_run_of_a_slow_healthy_check() -> None:
+    starts: list[int] = []
+
+    def slow() -> bool:
+        starts.append(1)
+        time.sleep(0.2)
+        return True
+
+    registry = ReadinessRegistry(timeout=5.0)
+    registry.register("database", slow)
+    results: list[dict[str, bool]] = []
+    threads = [threading.Thread(target=lambda: results.append(registry.run())) for _ in range(5)]
+
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert results == [{"database": True}] * 5
+    assert len(starts) == 1
