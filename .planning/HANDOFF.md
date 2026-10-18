@@ -1,9 +1,15 @@
 # TruthTrail — session handoff (read this first in a fresh session)
 
-**Written:** 2026-10-17, end of Phase 1. **Branch:** `claude/sleepy-lovelace-13aums` (all work pushed; HEAD at time of writing `402d8c8`).
-**State:** Phase 1 COMPLETE. Next step: **plan Phase 2 (Engineering Baseline)**. Nothing of Phase 2 exists yet.
+**Updated:** 2026-10-18, end of Phase 2. **Branch:** `claude/sleepy-lovelace-13aums` (all work pushed).
+**State:** Phases 1 and 2 COMPLETE (verified, UAT passed, CI green on all 7 jobs). Next step: **Phase 3, Real Propagation Data** (DATA-01..06). Nothing of Phase 3 exists yet.
 
-To continue: start a new session on this branch, then run `/gsd-next` (or `/gsd-discuss-phase 2` then `/gsd-plan-phase 2` then `/gsd-execute-phase 2`). `.planning/STATE.md` already says "Phase 1 complete, ready to plan Phase 2".
+To continue: start a new session on this branch, then run `/gsd-next` (or `/gsd-discuss-phase 3`, `/gsd-plan-phase 3`, `/gsd-execute-phase 3`). `.planning/STATE.md` says "Phase 2 complete, ready to plan Phase 3". Phase 3 starts with a source SPIKE (written decision on Bluesky terms, volume, cascade yield, edge semantics, tracked-root selection, retention) before any schema work; two owner decisions are pending there: the retention policy and how provisional cascades merge. ROADMAP open question: legacy `/analyze` must be retired or reduced because DATA-06 forbids proxying arbitrary queries to the news API.
+
+## Owner working preferences (latest)
+
+- The owner first wanted to review each stage, then said "approve and don't ask for permissions at all... go on". Current mode: run end to end autonomously, report at phase boundaries, and stop only for things only the owner can do (live API checks with their key, running commands on their Windows machine, GitHub settings). Ultracode is on in the last sessions: use the Workflow tool for substantive work.
+- The owner runs native Windows PowerShell (Python 3.13, uv). Owner-side checks are done by giving them exact commands and recording their pasted results in the phase UAT file.
+- Container rate limits: agents can die on "session limit"; the Workflow resumes with `resumeFromRunId` and cached results (completed agents are not re-run).
 
 ## What this project is
 
@@ -43,6 +49,14 @@ Phases 3 and 4 both depend only on Phase 2 and may run in parallel. v2 "Showcase
 - Exact-pinned dependencies including the transitive closure (`requirements.txt`, `requirements-dev.txt`; Starlette 1.8.0; `httpx==0.28.1`). `pytest.ini`: `xfail_strict`, `filterwarnings=error` with a documented Starlette httpx ignore.
 - Real-API facts the owner observed on 2026-10-17: valid key → 200; well-formed wrong key → GNews 401; malformed short key → GNews 400.
 
+## What Phase 2 delivered (verified: 533 passed, 10 strict xfailed, coverage 98.5%, gate 96; CI 7/7 green incl. docker)
+
+- `src/truthtrail/{api,services,schemas,core,data}` package; `legacy/` holds the unchanged simulator, user pool (isolated, never imported by the package); root `main.py` is a shim; the keyword scorer is `services/keyword_baseline.py`. Canonical app: `truthtrail.main:app`, built by `create_app()` with per-app state.
+- uv + `uv.lock` (Python 3.13; serve / dev / train groups), ruff, strict mypy, pip-audit, coverage gate, Hypothesis `ci` profile, `.gitattributes` LF normalisation.
+- `/health`, `/ready` (registry of dependency checks, fail closed, 503 problem+json), empty `/v1` router via `LimitedRouter`, CORS from `CORS_ORIGINS` (errors carry CORS headers), slowapi rate limits (429 problem+json), 600 s TTL cache (errors never cached), bounded retries with an 8 s budget and a process-wide upstream cap, uvicorn always started with `--no-proxy-headers`.
+- Dockerfile (non-root, digest-pinned), `.dockerignore`, CI jobs copy-guard, gitleaks, tests, lint, typecheck, audit, docker. No branch-protection required checks (CI is advisory).
+- Phase 3 and 4 must register their `/ready` checks (database, model artifact) and extend `/v1` through `LimitedRouter`. Phase 6 must set `FORWARDED_ALLOW_IPS` if it enables `TRUST_PROXY_HEADERS` behind a hosted proxy.
+
 ## Deferred / known items (not blocking)
 
 - Review items left open: 500 responses carry no CORS headers (IN-02); provider `Retry-After: 0` is passed through (IN-03); mixed CRLF/LF line endings with no `.gitattributes`, `models.py` loosely formatted, `Problem.synthetic` could be `Literal[False]` (IN-05).
@@ -65,7 +79,7 @@ Goal: a packaged, tested, containerised, CI-guarded FastAPI app with a versioned
 
 ## Environment gotchas (fresh container)
 
-- Rebuild the venv: `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt`. Use `PYTHONDONTWRITEBYTECODE=1` and delete stray `__pycache__` before finishing a turn.
+- Rebuild the venv with `uv sync` (uv 0.11.32 is preinstalled; newer uv via `python3 -m venv <dir> && <dir>/bin/pip install uv`). Requirements files no longer exist. Use `PYTHONDONTWRITEBYTECODE=1` and delete stray `__pycache__` before finishing a turn.
 - The gitleaks binary lived in `/tmp/truthtrail-gitleaks` (ephemeral): reinstall with `bash scripts/install_gitleaks.sh /tmp/truthtrail-gitleaks`.
 - Scratchpad helper scripts (e.g. a root-pin guard) were ephemeral and are gone; they are not needed.
 - `gh` may be absent; use the GitHub MCP tools (`mcp__github__actions_list` etc.) to check CI.
