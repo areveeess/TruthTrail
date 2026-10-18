@@ -313,11 +313,11 @@ def test_request_uses_timeout_header_and_fixed_params(
     gnews_fetcher.fetch_news("climate change", fake_key)
 
     request = mock_gnews.calls[0].request
-    # The first attempt's read timeout is capped by the 8 s total budget (D-12), so it is just
-    # under 8.0 on the real clock; tests/test_retries.py asserts the exact (3.05, 8.0) with a
-    # fake clock.
+    # The first attempt's connect and read timeouts together are capped by the 8 s total budget
+    # (D-12, review WR-04): the read timeout is the budget minus the connect timeout, so it is
+    # just under 4.95 on the real clock; tests/test_retries.py asserts it with a fake clock.
     connect_timeout, read_timeout = request.req_kwargs["timeout"]
-    timeout_ok = connect_timeout == 3.05 and 7.9 < read_timeout <= 8.0
+    timeout_ok = connect_timeout == 3.05 and 4.8 < read_timeout <= 4.95
     header_ok = request.headers.get("X-Api-Key") == fake_key
     params = dict(request.params)
     params_ok = params == {"q": "climate change", "lang": "en", "max": "1"}

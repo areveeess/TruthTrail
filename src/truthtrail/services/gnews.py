@@ -211,8 +211,11 @@ def fetch_news(query: str, api_key: str) -> list[dict[str, str]]:
         raise ConfigurationError("GNEWS_API_KEY is not a valid header value.")
 
     params: dict[str, str | int] = {"q": query, "lang": "en", "max": 1}
-    # Known limitation: requests read timeouts apply per socket read, so a server that drips
-    # bytes can exceed BUDGET. GNews bodies are tiny (max=1), so this is accepted (T-02-35).
+    # urllib3 applies the connect and read timeouts separately with no total, so each attempt
+    # gets a (connect, read) pair that sums to at most the remaining budget. Known limitations:
+    # read timeouts apply per socket read, so a server that drips bytes can exceed BUDGET
+    # (GNews bodies are tiny with max=1, so this is accepted, T-02-35); DNS resolution is outside
+    # both timeouts, and each resolved address gets its own connect timeout.
     start = _monotonic()
     # Used only when the budget ran out before any attempt could start.
     failure = _Failure(503, "upstream_timeout", "The news provider timed out.", retry_after=30)
@@ -221,9 +224,9 @@ def fetch_news(query: str, api_key: str) -> list[dict[str, str]]:
         remaining = BUDGET - (_monotonic() - start)
         if remaining <= 0:
             break
-        outcome = _request_once(
-            params, api_key, (min(CONNECT_TIMEOUT, remaining), min(READ_TIMEOUT, remaining))
-        )
+        connect_timeout = min(CONNECT_TIMEOUT, remaining / 2)
+        read_timeout = min(READ_TIMEOUT, remaining - connect_timeout)
+        outcome = _request_once(params, api_key, (connect_timeout, read_timeout))
         if isinstance(outcome, requests.Response):
             status_failure = _classify_status(outcome)
             if status_failure is None:

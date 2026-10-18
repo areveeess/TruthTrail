@@ -224,15 +224,18 @@ def test_200_with_a_bad_payload_is_called_once(
     assert fake_clock.sleeps == []
 
 
-def test_first_attempt_timeout_is_capped_by_the_budget(
+def test_first_attempt_connect_and_read_together_are_capped_by_the_budget(
     mock_gnews, gnews_url, gnews_article, gnews_payload, fake_key, fake_clock
 ) -> None:
     mock_gnews.get(gnews_url, json=gnews_payload(gnews_article()))
 
     gnews_fetcher.fetch_news("x", fake_key)
 
-    timeout = mock_gnews.calls[0].request.req_kwargs["timeout"]
-    assert timeout == (3.05, 8.0)
+    connect, read = mock_gnews.calls[0].request.req_kwargs["timeout"]
+    assert connect == 3.05
+    assert read == pytest.approx(gnews_fetcher.BUDGET - 3.05)
+    # urllib3 has no total timeout: a slow connect plus a slow read must still fit the budget.
+    assert connect + read <= gnews_fetcher.BUDGET + 1e-9
 
 
 def _burning_callback(
@@ -242,12 +245,16 @@ def _burning_callback(
     seen: list[tuple[float, float]],
     burn: float | None,
 ) -> None:
-    """Register a callback that spends fake time, records its timeout and raises ReadTimeout."""
+    """Register a callback that spends fake time, records its timeout and raises ReadTimeout.
+
+    ``burn`` caps the time one attempt spends; ``None`` means it spends connect plus read.
+    """
 
     def callback(request):  # type: ignore[no-untyped-def]
         timeout = request.req_kwargs["timeout"]
         seen.append(timeout)
-        clock.advance(timeout[1] if burn is None else min(timeout[1], burn))
+        # Worst case per attempt: the connect and the read both use their whole timeout.
+        clock.advance(sum(timeout) if burn is None else min(sum(timeout), burn))
         raise requests.exceptions.ReadTimeout("simulated")
 
     mock_gnews.add_callback(responses.GET, url, callback=callback)
@@ -286,7 +293,9 @@ def test_recorded_timeouts_shrink_and_total_time_stays_in_budget(
     positive = all(t > 0 for pair in seen for t in pair)
     connect_capped = all(c <= 3.05 for c in connects)
     read_capped = all(r <= 10.0 for r in reads)
-    assert reads[0] == 8.0
+    sums_within_budget = all(c + r <= gnews_fetcher.BUDGET + 1e-9 for c, r in seen)
+    assert reads[0] == pytest.approx(gnews_fetcher.BUDGET - 3.05)
+    assert sums_within_budget
     assert shrinking
     assert positive
     assert connect_capped
