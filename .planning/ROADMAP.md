@@ -17,7 +17,7 @@ TruthTrail began as a hackathon prototype whose "risk" score is keyword matching
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Secure & Honest Foundation** - Secrets out of the repo, honest upstream errors, provenance flags, validated typed responses, and tests that pin current behaviour before any refactor (completed 2026-10-17)
-- [ ] **Phase 2: Engineering Baseline** - `src/truthtrail` package, pinned dependencies, pytest + hypothesis, CI, Dockerfile, `/health` and `/ready`, CORS, rate limiting, caching, timeouts
+- [x] **Phase 2: Engineering Baseline** - `src/truthtrail` package, pinned dependencies, pytest + hypothesis, CI, Dockerfile, `/health` and `/ready`, CORS, rate limiting, caching, timeouts (completed 2026-10-18)
 - [ ] **Phase 3: Real Propagation Data** - Source spike, Postgres schema, bounded Bluesky Jetstream collector, enrich step, `/v1` read API and DB-served news context
 - [ ] **Phase 4: Baseline Detection & Evaluation** - Dataset scripts and disjoint splits, evaluation harness with baseline 0, calibrated TF-IDF + LR, integrity checks, hash-verified model serving, model card
 - [ ] **Phase 5: Dashboard** - React + TypeScript triage feed, cascade detail view, risk badge with abstain state, score-this-text playground, all failure states, generated API client
@@ -68,7 +68,7 @@ Plans:
   4. `docker build` succeeds and the running container answers `/health` with 200, while `/ready` returns 503 whenever a registered dependency check fails (proved by a test with an injected failing check); the database check lands in Phase 3 and the model-artifact check in Phase 4.
   5. CORS accepts only configured origins, requests over the rate limit receive 429, repeated reads are served from a TTL cache, and outbound HTTP uses timeouts and bounded retries (each proven by a test, including a mocked slow or failing upstream that stops after the retry bound).
 
-**Plans**: 12/12 plans executed
+**Plans**: 12/12 plans complete
 
 Plans:
 **Wave 1**
@@ -190,7 +190,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 (Phases 3 and 4 may 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Secure & Honest Foundation | 6/6 | Complete    | 2026-10-17 |
-| 2. Engineering Baseline | 12/12 | In Progress | - |
+| 2. Engineering Baseline | 12/12 | Complete    | 2026-10-18 |
 | 3. Real Propagation Data | 0/TBD | Not started | - |
 | 4. Baseline Detection & Evaluation | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |

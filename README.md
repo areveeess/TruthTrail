@@ -82,7 +82,7 @@ $env:DEMO_MODE = "true"; uv run uvicorn truthtrail.main:app --no-proxy-headers
 uv run pytest
 ```
 
-Then open `http://127.0.0.1:8000/health`. An existing `.venv` created with pip must be deleted before running `uv sync`. The Windows commands are documented but have not been run by the maintainer on a Windows machine yet.
+Then open `http://127.0.0.1:8000/health`. An existing `.venv` created with pip must be deleted before running `uv sync`. The Windows commands were run on native PowerShell by the maintainer on 2026-10-18 (533 tests passed, 10 expected xfails, `/health` answered).
 
 ### Dependency groups
 
