@@ -4,11 +4,13 @@ Repeated reads within the TTL cost no upstream quota: the second identical reque
 ``X-Cache: hit`` and the provider is called once. Only successes are stored (the honest empty
 result included, errors never), a hit replays the originally stored ``meta.data_as_of`` so
 staleness stays visible, and the rate limit applies before the cache. Expiry uses an injected
-fake clock (``create_app(cache_timer=...)``), so no test sleeps. The header is intentionally
-not documented in OpenAPI.
+fake clock (``create_app(cache_timer=...)``), so no expiry test sleeps (the single-flight test
+waits 0.3 s for its callers to queue). The header is intentionally not documented in OpenAPI.
 """
 
 import json
+import threading
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -250,3 +252,35 @@ def test_openapi_does_not_document_the_cache_header(client) -> None:
     spec_text = json.dumps(client.get("/openapi.json").json()).lower()
 
     assert "x-cache" not in spec_text
+
+
+def test_concurrent_identical_misses_cost_one_upstream_call(
+    make_client, mock_gnews, gnews_url, gnews_payload, gnews_article
+) -> None:
+    """Single-flight (D-11): a cold entry requested by many clients at once is fetched once."""
+    release = threading.Event()
+
+    def slow_provider(request: Any) -> tuple[int, dict[str, str], str]:
+        release.wait(timeout=10)
+        return (200, {}, json.dumps(gnews_payload(gnews_article())))
+
+    mock_gnews.add_callback(responses.GET, gnews_url, callback=slow_provider)
+    client = make_client(env={"RATE_LIMIT_ANALYZE": "100/minute"})
+    results: list[Any] = []
+
+    def call() -> None:
+        results.append(_get(client, "Bitcoin"))
+
+    threads = [threading.Thread(target=call) for _ in range(10)]
+    for thread in threads:
+        thread.start()
+    time.sleep(0.3)  # let every request reach the handler while the provider call is held
+    release.set()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert len(results) == 10
+    assert {r.status_code for r in results} == {200}
+    assert len(mock_gnews.calls) == 1
+    assert len({r.text for r in results}) == 1
+    assert sorted(r.headers["x-cache"] for r in results).count("miss") == 1

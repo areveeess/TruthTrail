@@ -1,10 +1,13 @@
 """Unit tests of the AnalyzeCache mechanics (D-11), independent of HTTP.
 
 The cache is a lock-guarded TTL and LRU map keyed by the trimmed, casefolded query plus the
-demo flag. Expiry is tested with an injected fake clock, so no test sleeps.
+demo flag. Expiry is tested with an injected fake clock, so no expiry test sleeps; the
+single-flight tests wait 0.2 s so concurrent callers can queue behind one computation.
 """
 
 import threading
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -179,3 +182,84 @@ def test_concurrent_mixed_access_raises_nothing() -> None:
         thread.join()
 
     assert errors == []
+
+
+def _run_concurrently(
+    cache: AnalyzeCache,
+    compute: Callable[[], AnalyzeResponse],
+    count: int,
+    release: threading.Event,
+) -> tuple[list[tuple[AnalyzeResponse, bool]], list[BaseException]]:
+    """Call get_or_compute from ``count`` threads, then release the computation."""
+    outcomes: list[tuple[AnalyzeResponse, bool]] = []
+    errors: list[BaseException] = []
+
+    def worker() -> None:
+        try:
+            outcomes.append(cache.get_or_compute("Bitcoin", False, compute))
+        except BaseException as exc:  # collected and asserted by the caller
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(count)]
+    for thread in threads:
+        thread.start()
+    time.sleep(0.2)  # let the other callers reach the in-flight entry
+    release.set()
+    for thread in threads:
+        thread.join(timeout=10)
+    return outcomes, errors
+
+
+def test_concurrent_misses_for_one_key_compute_once() -> None:
+    cache = AnalyzeCache()
+    release = threading.Event()
+    calls: list[int] = []
+    produced = _response()
+
+    def compute() -> AnalyzeResponse:
+        calls.append(1)
+        release.wait(timeout=10)
+        return produced
+
+    outcomes, errors = _run_concurrently(cache, compute, 12, release)
+
+    assert errors == []
+    assert len(calls) == 1
+    assert len(outcomes) == 12
+    assert all(value is produced for value, _ in outcomes)
+    shared = sorted(flag for _, flag in outcomes)
+    assert shared == [False] + [True] * 11
+    assert cache.get("bitcoin", False) is produced
+
+
+def test_a_failing_computation_reaches_every_waiter_and_is_not_stored() -> None:
+    cache = AnalyzeCache()
+    release = threading.Event()
+    calls: list[int] = []
+
+    def compute() -> AnalyzeResponse:
+        calls.append(1)
+        release.wait(timeout=10)
+        raise RuntimeError("provider down")
+
+    outcomes, errors = _run_concurrently(cache, compute, 6, release)
+
+    assert outcomes == []
+    assert len(calls) == 1
+    assert len(errors) == 6
+    assert all(isinstance(exc, RuntimeError) for exc in errors)
+    assert cache.get("bitcoin", False) is None
+    # The failed flight is gone: the next caller computes again instead of waiting forever.
+    recovered = cache.get_or_compute("Bitcoin", False, _response)
+    assert recovered[1] is False
+
+
+def test_get_or_compute_returns_a_stored_entry_without_computing() -> None:
+    cache = AnalyzeCache()
+    stored = _response()
+    cache.put("Bitcoin", False, stored)
+
+    def never() -> AnalyzeResponse:
+        raise AssertionError("must not compute")
+
+    assert cache.get_or_compute(" bitcoin ", False, never) == (stored, True)

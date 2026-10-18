@@ -88,15 +88,13 @@ def build_analyze_router(limiter: Limiter) -> APIRouter:
         # The limiter wrapper has already counted this request, so a cache hit still consumes
         # quota (limit before cache). The header is deliberately not documented in OpenAPI.
         cache: AnalyzeCache = request.app.state.analyze_cache
-        cached = cache.get(query, settings.demo_mode)
-        if cached is not None:
-            response.headers["X-Cache"] = "hit"
-            return cached
-        # Miss: compute outside the cache lock (the fetch blocks on the network), store only a
-        # success (an exception propagates before the put), then report the miss.
-        result = _compute(query, settings)
-        cache.put(query, settings.demo_mode, result)
-        response.headers["X-Cache"] = "miss"
+        # Single-flight: concurrent identical misses share one provider call. Only a success is
+        # stored (an exception propagates before the put). A caller that waited on another
+        # caller's fetch is reported as a hit: it cost no quota.
+        result, shared = cache.get_or_compute(
+            query, settings.demo_mode, lambda: _compute(query, settings)
+        )
+        response.headers["X-Cache"] = "hit" if shared else "miss"
         return result
 
     return router
