@@ -8,11 +8,25 @@ The limiter is built per app by ``create_app()`` and lives on ``app.state.limite
 is in memory, so state is per process and never shared between apps.
 """
 
+import math
+import time
 from collections.abc import Callable
 from typing import Any
 
 from fastapi import APIRouter, Request
+from limits import parse
+from limits.storage import MemoryStorage
+from limits.strategies import MovingWindowRateLimiter
 from slowapi import Limiter
+
+from truthtrail.core.errors import UpstreamError
+
+# Process-wide cap on provider calls, independent of who asks. The per-IP limit and the cache
+# do not bound distinct queries, so without it a handful of clients can spend the provider's
+# free-plan daily quota (about 100 calls, research A6) and lock every user out. Meant to match
+# the provider plan; a retried request can cost the provider up to three units, so the cap
+# slightly under-counts. In memory, so per process like the other limits.
+UPSTREAM_BUDGET = "100/day"
 
 
 def client_ip(request: Request) -> str:
@@ -49,3 +63,28 @@ class LimitedRouter(APIRouter):
 
     def add_api_route(self, path: str, endpoint: Callable[..., Any], **kwargs: Any) -> None:
         super().add_api_route(path, self._limiter.limit(self._limit)(endpoint), **kwargs)
+
+
+class UpstreamBudget:
+    """A moving-window cap on provider calls shared by every client of one app."""
+
+    def __init__(self, limit: str = UPSTREAM_BUDGET) -> None:
+        self._item = parse(limit)
+        self._strategy = MovingWindowRateLimiter(MemoryStorage())
+
+    def spend(self) -> None:
+        """Count one provider call, or raise a 503 ``UpstreamError`` when the budget is spent.
+
+        Called before the provider is contacted, so an exhausted budget costs no quota. The
+        error carries ``Retry-After``: the seconds until the oldest counted call leaves the
+        window, at least one.
+        """
+        if self._strategy.hit(self._item, "upstream"):
+            return
+        reset_at = self._strategy.get_window_stats(self._item, "upstream").reset_time
+        raise UpstreamError(
+            503,
+            "upstream_budget_exhausted",
+            "The service has used its news provider call budget for now.",
+            retry_after=max(1, math.ceil(reset_at - time.time())),
+        )

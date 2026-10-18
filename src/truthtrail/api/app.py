@@ -18,7 +18,7 @@ from truthtrail.api.analyze import build_analyze_router
 from truthtrail.api.cache import AnalyzeCache
 from truthtrail.api.catchall import CatchAllMiddleware
 from truthtrail.api.health import build_health_router
-from truthtrail.api.limits import LimitedRouter, build_limiter
+from truthtrail.api.limits import LimitedRouter, UpstreamBudget, build_limiter
 from truthtrail.api.problems import register_problem_handlers
 from truthtrail.api.v1 import build_v1_router
 from truthtrail.core.boot import get_boot_settings
@@ -81,6 +81,7 @@ def create_app(
     limiter = build_limiter()
     app.state.limiter = limiter
     app.state.analyze_cache = AnalyzeCache(timer=cache_timer or time.monotonic)
+    app.state.upstream_budget = UpstreamBudget()
     app.include_router(build_analyze_router(limiter))
     app.include_router(build_v1_router(limiter, v1_registrars))
     boot = get_boot_settings()

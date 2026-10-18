@@ -14,6 +14,7 @@ from pydantic import StringConstraints
 from slowapi import Limiter
 
 from truthtrail.api.cache import AnalyzeCache
+from truthtrail.api.limits import UpstreamBudget
 from truthtrail.api.problems import PROBLEM_RESPONSES
 from truthtrail.core.cascade import cascade_events_from, validate_cascade
 from truthtrail.core.config import Settings, get_settings
@@ -91,8 +92,9 @@ def build_analyze_router(limiter: Limiter) -> APIRouter:
         # Single-flight: concurrent identical misses share one provider call. Only a success is
         # stored (an exception propagates before the put). A caller that waited on another
         # caller's fetch is reported as a hit: it cost no quota.
+        budget: UpstreamBudget = request.app.state.upstream_budget
         result, shared = cache.get_or_compute(
-            query, settings.demo_mode, lambda: _compute(query, settings)
+            query, settings.demo_mode, lambda: _compute(query, settings, budget)
         )
         response.headers["X-Cache"] = "hit" if shared else "miss"
         return result
@@ -100,8 +102,11 @@ def build_analyze_router(limiter: Limiter) -> APIRouter:
     return router
 
 
-def _compute(query: str, settings: Settings) -> AnalyzeResponse:
-    """Build the response for a cache miss: the demo fixture or a live provider fetch."""
+def _compute(query: str, settings: Settings, budget: UpstreamBudget) -> AnalyzeResponse:
+    """Build the response for a cache miss: the demo fixture or a live provider fetch.
+
+    A live fetch first spends one unit of the process-wide upstream budget (503 when spent).
+    """
     if settings.demo_mode:
         # The fixture is the only demo source and is reachable only through this branch.
         # The validated query is ignored in demo mode: the fixture never changes.
@@ -109,6 +114,7 @@ def _compute(query: str, settings: Settings) -> AnalyzeResponse:
     api_key = (
         settings.gnews_api_key.get_secret_value() if settings.gnews_api_key is not None else ""
     )
+    budget.spend()
     articles = fetch_news(query, api_key)
     # Server receive time: when this service obtained the provider response.
     data_as_of = datetime.now(UTC).replace(microsecond=0)
