@@ -36,6 +36,26 @@ def test_allowed_origin_gets_acao_and_vary(
     assert "access-control-allow-credentials" not in response.headers
 
 
+def test_retry_after_and_x_cache_are_exposed_to_browser_scripts(
+    client_factory: Callable[..., Any], mock_gnews, gnews_url, gnews_payload, gnews_article
+) -> None:
+    """Retry-After and X-Cache are not CORS-safelisted, so they must be listed explicitly."""
+    _mock_ok(mock_gnews, gnews_url, gnews_payload, gnews_article)
+    client = client_factory(env={"CORS_ORIGINS": ALLOWED, "RATE_LIMIT_ANALYZE": "1/minute"})
+
+    ok = client.get("/analyze", params={"query": "x"}, headers={"Origin": ALLOWED})
+    limited = client.get("/analyze", params={"query": "x"}, headers={"Origin": ALLOWED})
+
+    assert ok.status_code == 200
+    assert limited.status_code == 429
+    for response in (ok, limited):
+        exposed = {
+            h.strip().lower() for h in response.headers["access-control-expose-headers"].split(",")
+        }
+        assert {"retry-after", "x-cache"} <= exposed
+    assert "retry-after" in limited.headers
+
+
 def test_unlisted_origin_gets_no_acao(
     client_factory: Callable[..., Any], mock_gnews, gnews_url, gnews_payload, gnews_article
 ) -> None:

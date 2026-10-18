@@ -93,6 +93,9 @@ def create_app(
         allow_origins=boot.cors_origins,
         allow_methods=["GET", "HEAD", "OPTIONS"],
         allow_credentials=False,
+        # Retry-After (429/503) and X-Cache are not CORS-safelisted; without this a browser
+        # frontend reads both as null.
+        expose_headers=["Retry-After", "X-Cache"],
     )
     if boot.trust_proxy_headers:
         # Added LAST, so outermost: it rewrites the client address before anything else sees
