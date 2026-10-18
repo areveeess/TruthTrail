@@ -42,6 +42,14 @@ def probe_two(router: LimitedRouter) -> None:
         return {"ok": True}
 
 
+def probe_item(router: LimitedRouter) -> None:
+    """Registrar with a path-parameter route, the shape of /v1/claims/{id} in Phase 3."""
+
+    @router.get("/items/{item_id}")
+    def item_route(request: Request, item_id: str) -> dict[str, str]:
+        return {"id": item_id}
+
+
 def _statuses(client: Any, path: str, count: int, headers: list[dict[str, str]] | None = None):
     return [
         client.get(path, headers=(headers[i] if headers else None)).status_code
@@ -79,6 +87,19 @@ def test_each_route_has_its_own_bucket(client_factory: Callable[..., Any]) -> No
 
     assert first == [200, 429]
     assert second == [200, 429]
+
+
+def test_path_parameter_route_shares_one_bucket_across_ids(
+    client_factory: Callable[..., Any],
+) -> None:
+    """Varying the path parameter must not mint a new bucket (slowapi keys by URL by default)."""
+    client = client_factory(
+        env={"RATE_LIMIT_V1": "2/minute"}, app_kwargs={"v1_registrars": [probe_item]}
+    )
+
+    statuses = [client.get(f"/v1/items/{n}").status_code for n in range(6)]
+
+    assert statuses == [200, 200, 429, 429, 429, 429]
 
 
 def test_handler_without_request_parameter_cannot_be_registered(

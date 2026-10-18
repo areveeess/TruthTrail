@@ -21,8 +21,13 @@ def client_ip(request: Request) -> str:
 
 
 def build_limiter() -> Limiter:
-    """Return a new in-memory limiter keyed by client IP (one per app)."""
-    return Limiter(key_func=client_ip, storage_uri="memory://")
+    """Return a new in-memory limiter keyed by client IP (one per app).
+
+    ``key_style="endpoint"`` scopes each bucket by route function. slowapi's default (``"url"``)
+    scopes it by the concrete request path, so a route with a path parameter such as
+    ``/v1/claims/{id}`` would get a fresh bucket per id and never be limited.
+    """
+    return Limiter(key_func=client_ip, storage_uri="memory://", key_style="endpoint")
 
 
 class LimitedRouter(APIRouter):
