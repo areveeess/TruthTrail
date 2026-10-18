@@ -154,8 +154,10 @@ jobs:
       # DEMO_MODE=true serves the labelled synthetic fixture, so no key or secret is needed.
       - name: Start the container
         run: docker run -d -e DEMO_MODE=true -p 8000:8000 truthtrail:ci > "$RUNNER_TEMP/container_id"
+      # Docker's userland port proxy accepts the connection before uvicorn binds and then resets it, which
+      # curl reports as exit 56 or 52, not "connection refused"; only --retry-all-errors retries those.
       - name: Probe /health
-        run: curl -fsS --retry 15 --retry-connrefused --retry-delay 1 http://127.0.0.1:8000/health
+        run: curl -fsS --retry 15 --retry-all-errors --retry-delay 1 http://127.0.0.1:8000/health
       - name: Probe /ready
         run: curl -fsS http://127.0.0.1:8000/ready
       - name: Probe /analyze (synthetic demo data)

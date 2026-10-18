@@ -148,6 +148,16 @@ def test_docker_job_builds_runs_and_probes_the_image() -> None:
         assert module in text, module
 
 
+def test_docker_health_probe_retries_connection_resets() -> None:
+    """Docker's port proxy resets (curl exit 56) before uvicorn binds; refused-only misses it."""
+    probe = [s for s in _steps("docker") if s.get("name") == "Probe /health"]
+    assert len(probe) == 1
+    command = probe[0]["run"]
+    assert "--retry-all-errors" in command
+    assert "--retry " in command
+    assert "/health" in command
+
+
 def test_docker_job_always_prints_logs_and_stops_the_container() -> None:
     cleanup = [s for s in _steps("docker") if str(s.get("if", "")).strip() == "always()"]
     assert len(cleanup) == 1
