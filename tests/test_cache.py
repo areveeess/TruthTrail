@@ -12,6 +12,7 @@ import json
 import threading
 import time
 from collections.abc import Callable
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -19,6 +20,7 @@ import requests
 import responses
 
 from truthtrail.api.analyze import FIXTURE_PATH
+from truthtrail.schemas.models import AnalyzeResponse, LiveResult, Meta
 
 TTL = 600
 
@@ -94,6 +96,38 @@ def test_hit_replays_the_original_data_as_of(make_client, mock_gnews, clock, ups
     assert first.json()["meta"]["data_as_of"] == second.json()["meta"]["data_as_of"]
     assert first.json() == second.json()
     assert len(mock_gnews.calls) == 1
+
+
+def test_hit_does_not_restamp_an_old_data_as_of(make_client, mock_gnews, upstream) -> None:
+    """A stored answer that is old must be served with its old timestamp, not stamped 'now'.
+
+    ``data_as_of`` has one-second resolution and the cache clock is injected, so the test above
+    cannot tell a replay from a re-stamp. Here the stored entry carries a timestamp years in the
+    past, which no wall-clock read could produce.
+    """
+    client = make_client()
+    old = datetime(2020, 1, 2, 3, 4, 5, tzinfo=UTC)
+    stored = AnalyzeResponse(
+        results=[
+            LiveResult(
+                headline="Old headline",
+                source="Example Wire",
+                published_at="2020-01-02T03:00:00Z",
+                risk="Low",
+                risk_method="keyword_baseline",
+            )
+        ],
+        meta=Meta(synthetic=False, data_as_of=old, source_status="ok"),
+    )
+    client.app.state.analyze_cache.put("bakery", False, stored)
+
+    response = _get(client)
+
+    assert response.status_code == 200
+    assert response.headers["x-cache"] == "hit"
+    assert response.json()["meta"]["data_as_of"] == "2020-01-02T03:04:05Z"
+    assert response.json()["meta"]["synthetic"] is False
+    assert len(mock_gnews.calls) == 0
 
 
 def test_entry_is_a_hit_at_599_seconds_and_a_miss_at_601(
