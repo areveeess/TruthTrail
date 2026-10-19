@@ -6,6 +6,7 @@ the comments of ``build_constructed_log``.
 """
 
 import gzip
+import hashlib
 import json
 import re
 import sys
@@ -1265,8 +1266,8 @@ def test_an_active_account_without_a_status_field_stays_active_and_unknown_becom
 
 
 def test_long_hex_runs_in_a_url_path_never_survive_the_scrub():
-    digits = "648b1abd8cc3c58f59ac3bce91c95138"
-    other = "648B1ABD8CC3C58F59AC3BCE91C95139"
+    digits = hashlib.sha256(b"constructed article").hexdigest()[:32]
+    other = digits[:-1].upper() + ("0" if digits[-1] != "0" else "1")
     one = scrub.strip_url(f"https://news.example/article/{digits}/story")
     two = scrub.strip_url(f"https://news.example/article/{other}/story")
     expected = "".join("ghijklmnopqrstuv"[int(c, 16)] for c in digits)
