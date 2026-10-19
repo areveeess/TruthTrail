@@ -238,6 +238,16 @@ def iter_frames(refs: Iterable[LogRef], stats: Counter[str] | None = None) -> It
             yield frame
 
 
+def load_allowlist(path: Path) -> list[str]:
+    """Read ``domain  # category`` lines (comments and blanks skipped, lowercased)."""
+    domains: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        entry = line.split("#", 1)[0].strip().lower()
+        if entry:
+            domains.append(entry)
+    return domains
+
+
 def sha256_file(path: Path) -> str:
     """Hex sha256 of a file, streamed."""
     digest = hashlib.sha256()
@@ -373,6 +383,7 @@ class TrackedEvent:
     kind: str
     depth: int | None
     orphan: bool
+    parent: str | None = None
 
 
 @dataclass(slots=True)
@@ -777,7 +788,7 @@ class Collector:
         self.stored_children += 1
         self.stored[uri] = (cas, depth, edge.kind)
         if self.keep_rows:
-            cas.children.append(TrackedEvent(frame, edge.kind, depth, orphan))
+            cas.children.append(TrackedEvent(frame, edge.kind, depth, orphan, edge.parent))
         return True
 
     def _repost(self, frame: Frame, uri: str, record: dict[str, Any]) -> None:
