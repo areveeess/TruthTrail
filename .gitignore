@@ -38,3 +38,6 @@ node_modules/
 .idea/
 .vscode/
 .DS_Store
+
+# Spike tool output: transient raw logs and analysis files (never committed, D-01)
+spike-output/
