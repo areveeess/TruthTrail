@@ -1262,3 +1262,17 @@ def test_an_active_account_without_a_status_field_stays_active_and_unknown_becom
     assert other["payload"]["account"]["status"] == "other"
     gone = scrub.scrub_frame(account(active=False, did="did:plc:a", status="deleted"), maps)
     assert gone["payload"]["account"]["status"] == "deleted"
+
+
+def test_long_hex_runs_in_a_url_path_never_survive_the_scrub():
+    digits = "648b1abd8cc3c58f59ac3bce91c95138"
+    other = "648B1ABD8CC3C58F59AC3BCE91C95139"
+    one = scrub.strip_url(f"https://news.example/article/{digits}/story")
+    two = scrub.strip_url(f"https://news.example/article/{other}/story")
+    expected = "".join("ghijklmnopqrstuv"[int(c, 16)] for c in digits)
+    assert one == f"https://news.example/article/{expected}/story"
+    assert not re.search(r"[0-9a-fA-F]{32}", one)
+    assert one != two
+    assert scrub.strip_url(f"https://news.example/article/{digits}/story") == one
+    short = "https://news.example/article/12345abcde"
+    assert scrub.strip_url(short) == short

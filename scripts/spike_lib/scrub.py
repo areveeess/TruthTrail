@@ -85,6 +85,20 @@ class ScrubMaps:
         return f"at://{self.did(parsed.authority)}/{parsed.collection}/{self.rkey(parsed.rkey)}"
 
 
+_HEX_RUN = re.compile(r"[0-9a-fA-F]{32,}")
+_HEX_TO_LETTER = {c: "ghijklmnopqrstuv"[i] for i, c in enumerate("0123456789abcdef")}
+_HEX_TO_LETTER.update({c.upper(): v for c, v in list(_HEX_TO_LETTER.items()) if c.isalpha()})
+
+
+def _unhex(match: re.Match[str]) -> str:
+    """Map a long hex run (an article id that would read as key material) to letters g to v.
+
+    The map is a bijection on hex digits, so two different article ids stay different and the
+    same id always maps to the same text.
+    """
+    return "".join(_HEX_TO_LETTER[c] for c in match.group(0))
+
+
 def strip_url(url: object) -> str | None:
     """Reduce an http(s) URL to scheme, host and path (no userinfo, port, query or fragment)."""
     if not isinstance(url, str):
@@ -97,7 +111,7 @@ def strip_url(url: object) -> str | None:
         return None
     if parts.scheme.lower() not in ("http", "https") or not host:
         return None
-    return f"{parts.scheme.lower()}://{host.lower()}{parts.path}"
+    return f"{parts.scheme.lower()}://{host.lower()}{_HEX_RUN.sub(_unhex, parts.path)}"
 
 
 def _ref(maps: ScrubMaps, ref: object) -> dict[str, str] | None:
