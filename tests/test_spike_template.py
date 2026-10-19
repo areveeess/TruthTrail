@@ -130,3 +130,31 @@ def test_ratification_block_lists_the_token_in_every_ratifying_reply():
     assert len(replies) == 2
     assert all("pseudonym=d17" in line or "pseudonym=d17" in block for line in replies)
     assert "does not confirm the one-way D-17 scheme" in block
+
+
+def test_the_finished_document_has_no_fill_in_marker_left():
+    text = SPIKE.read_text(encoding="utf-8")
+    assert not re.findall(r"\[\[MEASURE:[^\]]*\]\]", text)
+
+
+def test_recommended_values_pass_the_gate_when_ratified_on_a_constructed_copy(gate, tmp_path):
+    """The recommended defaults are consistent with their own options (constructed ratification)."""
+    front = gate.parse_front_matter(SPIKE.read_text(encoding="utf-8"))
+    front.update(
+        ratified="true", ratified_by="owner", ratified_on="2026-10-20",
+        ratification_source="owner-edit", od1_retention="recommended-defaults",
+        od2_merge="recommended-defaults", od3_tracking="recommended-defaults",
+        schema_via_uri="true", dependencies_approved="true", pseudonym_scheme="d17-hmac-v1",
+    )  # fmt: skip
+    path = tmp_path / "constructed.md"
+    lines = ["---"]
+    for key, value in front.items():
+        lines.append(
+            f"{key}: {value if isinstance(value, str) else __import__('json').dumps(value)}"
+        )
+    path.write_text("\n".join([*lines, "---", ""]), encoding="utf-8")
+    code, _messages, payload = gate.evaluate(path)
+    assert code == 0
+    assert payload["resolved_od1"] == "RT-2"
+    assert payload["effective_parameters"]["TRACK_SAMPLE_PER_10K"] == 625
+    assert payload["effective_parameters"]["RETENTION_TEXT_DAYS"] == 14

@@ -1,0 +1,73 @@
+# DRAFT allowlist of news and fact-check domains for tracked-root seeding (OD-3 option A).
+# For the owner's review at the plan 03-01 checkpoint: nothing is ratified until the owner says so.
+#
+# Selection rule: CATEGORY ONLY, never political lean. An entry is one of
+#   wire-service          international wire services
+#   public-broadcaster    publicly funded or public-service broadcasters with English output
+#   fact-checker          fact-checking organisations believed to be IFCN signatories
+#   newspaper-of-record   an English-language daily with a national or international audience and a
+#                         published corrections policy
+#   news-agency           national or international news agencies
+#   science-news          science and health news outlets
+# Excluded by the same rule: social platforms, video and audio sites, aggregators, blog and
+# newsletter hosts, content farms, link shorteners, cable and broadcast television networks,
+# digital-native outlets and tabloids. This is an editorial choice and a disclosed selection bias
+# (README limitations, DOC-02). Conformance with the published-corrections and IFCN criteria was not
+# re-verified entry by entry in the spike; the owner reviews the list.
+#
+# Format: one lowercase registrable domain per line, no www., then a category comment. A domain
+# also matches its subdomains (news.bbc.co.uk matches bbc.co.uk), never a look-alike host.
+apnews.com  # wire-service
+reuters.com  # wire-service
+afp.com  # wire-service
+upi.com  # wire-service
+bloomberg.com  # wire-service
+bbc.co.uk  # public-broadcaster
+bbc.com  # public-broadcaster
+npr.org  # public-broadcaster
+pbs.org  # public-broadcaster
+cbc.ca  # public-broadcaster
+abc.net.au  # public-broadcaster
+rnz.co.nz  # public-broadcaster
+rte.ie  # public-broadcaster
+dw.com  # public-broadcaster
+france24.com  # public-broadcaster
+snopes.com  # fact-checker
+politifact.com  # fact-checker
+factcheck.org  # fact-checker
+fullfact.org  # fact-checker
+leadstories.com  # fact-checker
+checkyourfact.com  # fact-checker
+factcheck.afp.com  # fact-checker
+africacheck.org  # fact-checker
+nytimes.com  # newspaper-of-record
+washingtonpost.com  # newspaper-of-record
+theguardian.com  # newspaper-of-record
+wsj.com  # newspaper-of-record
+latimes.com  # newspaper-of-record
+usatoday.com  # newspaper-of-record
+ft.com  # newspaper-of-record
+thetimes.co.uk  # newspaper-of-record
+telegraph.co.uk  # newspaper-of-record
+independent.co.uk  # newspaper-of-record
+theglobeandmail.com  # newspaper-of-record
+thestar.com  # newspaper-of-record
+irishtimes.com  # newspaper-of-record
+smh.com.au  # newspaper-of-record
+theage.com.au  # newspaper-of-record
+theaustralian.com.au  # newspaper-of-record
+nzherald.co.nz  # newspaper-of-record
+thehindu.com  # newspaper-of-record
+hindustantimes.com  # newspaper-of-record
+japantimes.co.jp  # newspaper-of-record
+straitstimes.com  # newspaper-of-record
+scmp.com  # newspaper-of-record
+bostonglobe.com  # newspaper-of-record
+chicagotribune.com  # newspaper-of-record
+csmonitor.com  # newspaper-of-record
+nature.com  # science-news
+science.org  # science-news
+sciencenews.org  # science-news
+newscientist.com  # science-news
+scientificamerican.com  # science-news
+statnews.com  # science-news
