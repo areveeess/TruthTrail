@@ -981,12 +981,14 @@ For the owner's own test database (D-30): `winget install PostgreSQL.PostgreSQL.
 | A14 | The Neon free-tier limits quoted in STACK.md (1 GB, autosuspend) are current | Privacy, Retention and Storage | Budget arithmetic only; Phase 6 re-verifies |
 | A15 | `runuser` (util-linux) exists wherever the fixture runs as euid 0 | Pattern 11 | Fixture error; add `su -s /bin/sh postgres -c` fallback |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> RESOLVED here means every question has a named disposition and no planning input is missing. An answer that only the owner or a later phase can supply is not claimed as answered: its `Disposition:` line names the plan task, phase or non-gating manual item that collects it (plans 03-01 to 03-12 and `03-VALIDATION.md` route each one).
 
 1. **Which v2 host is primary and does failover work? (RESOLVED)**
    - Both v2 hosts stream through the proxy; seq spaces differ, `witnessedAt` offsets stay within about +/-2 s over 90 s; resume by microsecond timestamp with a 30 s rewind (F-03).
 2. **Can the key-less live tail catch up after downtime? (RESOLVED)**
-   - Yes, up to the 36 h floor, at 1,900-2,800 events/s; beyond it a timestamp cursor is clamped with an in-band `#info` (F-02). Whether a *scheduled* job can keep up is a cadence question (F-05, OPEN for Phase 6).
+   - Yes, up to the 36 h floor, at 1,900-2,800 events/s; beyond it a timestamp cursor is clamped with an in-band `#info` (F-02). Whether a *scheduled* job can keep up is a cadence question (F-05; deferred to Phase 6, item 14).
 3. **Does a dictionary have to be vendored for zstd? (RESOLVED)**
    - No: fetch by id over HTTP (immutable, identical on both hosts). Compression stays off (D-06); enable only for catch-up if bandwidth matters.
 4. **psycopg 3 or asyncpg? (RESOLVED)** psycopg 3 sync (D-19); `pool` extra dropped (F-12).
@@ -995,20 +997,21 @@ For the owner's own test database (D-30): `winget install PostgreSQL.PostgreSQL.
 7. **How is Alembic proven in CI and in pytest? (RESOLVED)** CLI steps in CI; programmatic `command.upgrade/check/downgrade` with a shared connection in pytest (Pattern 8).
 8. **What strategy proves arrival-order independence? (RESOLVED)** Pattern 7, with mutation evidence.
 9. **Is the public AppView needed in the product? (RESOLVED)** No. It is useful only as a read-only completeness cross-check in the spike (S-13); its thread view is truncated and `searchPosts` is 403.
-10. **Should repost `via` be stored? (OPEN - decision input for the owner at the spike checkpoint)**
+10. **Should repost `via` be stored? (RESOLVED for planning - owner confirmation at the spike checkpoint)**
     - What we know: 24.2 percent of reposts carry it; it is cheap now and a re-ingest later.
     - What's unclear: whether Phase 5 or v2 will draw observed reshare chains.
     - Recommendation: add nullable `via_uri` to the baseline migration; keep D-12's star semantics.
-11. **OD-3: tracked-root selection and bounds. (OPEN - OWNER DECISION)** Facts in "Tracked-root selection policies" and F-06. Recommendation unchanged (A, PROVISIONAL), with a deterministic sampling parameter added to the policy object so the cap is a safety valve; ratify after S-5 and S-9 from the long runs.
-12. **OD-1: retention. (OPEN - OWNER DECISION)** Facts in "Storage by scenario" and the deletion measurements. Recommendation unchanged (RT-2, 14/90/7, PROVISIONAL) but the 90-day cascade window is only affordable together with a root cap or sampling and, ideally, early removal of dormant (zero-child) cascades; re-check with S-8's bytes per row.
-13. **OD-2: merging. (OPEN - OWNER DECISION)** Recommendation unchanged (M1, PROVISIONAL); situation (A) cannot occur under allowlist seeding; S-9 counts situation (B).
-14. **Scheduled-job cadence and bounds (OPEN - Phase 6, but state it in the spike document).** F-05 arithmetic.
-15. **GNews Free-plan wording vs a public portfolio demo (OPEN - owner).** The terms say non-commercial/personal/academic/evaluation use; a free public demo is plausibly within it, but the owner should read section 3 of the GNews terms before the public deploy.
-16. **Developer Guidelines duties for a read-only dashboard (OPEN - recommendation).** Add a public contact in the README and User-Agent, a documented report path and an operator hide/erase command (Claude's discretion; small).
-17. **Runner reachability and rate limiting of Jetstream from GitHub Actions (OPEN - Phase 6 verification).**
-18. **Windows run of the spike (OPEN - owner).** Commands above; result pasted into the decision document.
-19. **Docker digest for the service container (OPEN - planner re-resolves).** Values above are from the Hub tags API.
-20. **Status of the User Intents proposal and any live declarations (OPEN - watch; re-read before Phase 6).**
+    - Disposition: owner decision at plan 03-01 Task 5 (checkpoint item 4, front matter key `schema_via_uri`); plan 03-03 adds the column iff the owner confirms; plan 03-01 Task 4 measures the `via` share (S-6).
+11. **OD-3: tracked-root selection and bounds. (RESOLVED for planning - OWNER DECISION, stays an owner decision)** Facts in "Tracked-root selection policies" and F-06. Recommendation unchanged (A, PROVISIONAL), with a deterministic sampling parameter added to the policy object so the cap is a safety valve; ratify after S-5 and S-9 from the long runs. Disposition: owner decision at plan 03-01 Task 5; the plans take it as the TRACK_* policy parameters (plan 03-02), option B is built and tested in plans 03-04 and 03-05, option C is outside the plans.
+12. **OD-1: retention. (RESOLVED for planning - OWNER DECISION, stays an owner decision)** Facts in "Storage by scenario" and the deletion measurements. Recommendation unchanged (RT-2, 14/90/7, PROVISIONAL) but the 90-day cascade window is only affordable together with a root cap or sampling and, ideally, early removal of dormant (zero-child) cascades; re-check with S-8's bytes per row. Disposition: owner decision at plan 03-01 Task 5; the plans take it as the RETENTION_* policy parameters (plan 03-02), enforced by the purge of plan 03-06.
+13. **OD-2: merging. (RESOLVED for planning - OWNER DECISION, stays an owner decision)** Recommendation unchanged (M1, PROVISIONAL); situation (A) cannot occur under allowlist seeding; S-9 counts situation (B). Disposition: owner decision at plan 03-01 Task 5; the plans take it as CASCADE_MERGE_POLICY (plans 03-02, 03-03, 03-07); M2 is outside the plans.
+14. **Scheduled-job cadence and bounds (RESOLVED for planning - deferred to Phase 6, stated in the spike document).** F-05 arithmetic. Disposition: plan 03-01 Task 4 writes the catch-up and cadence arithmetic into 03-SPIKE.md from measured events per hour; Phase 6 chooses the schedule; no Phase 3 plan builds a scheduler.
+15. **GNews Free-plan wording vs a public portfolio demo (RESOLVED for planning - owner action before the Phase 6 deploy, non-gating).** The terms say non-commercial/personal/academic/evaluation use; a free public demo is plausibly within it, but the owner should read section 3 of the GNews terms before the public deploy. Disposition: plan 03-01 Task 4 step 8 re-quotes the terms with dates (S-10); the owner re-reads them before Phase 6 (non-gating row in 03-VALIDATION.md Manual-Only Verifications).
+16. **Developer Guidelines duties for a read-only dashboard (RESOLVED for planning - adopted as Claude's discretion).** Add a public contact in the README and User-Agent, a documented report path and an operator hide/erase command (Claude's discretion; small). Disposition: COLLECTOR_CONTACT in the User-Agent (plan 03-02), the operator erase command (plan 03-05), the documented report path and limits (plan 03-10 Task 1); the public contact in the deployed README is Phase 6.
+17. **Runner reachability and rate limiting of Jetstream from GitHub Actions (RESOLVED for planning - Phase 6 verification, non-gating).** Disposition: no Phase 3 plan depends on it (pytest never contacts Jetstream); it is a non-gating row in 03-VALIDATION.md Manual-Only Verifications and a Phase 6 deploy check.
+18. **Windows run of the spike (RESOLVED for planning - owner action, non-gating).** Commands above; result pasted into the decision document. Disposition: requested at the plan 03-01 checkpoint (front matter `windows_result`, S-12); ratification does not wait for it.
+19. **Docker digest for the service container (RESOLVED - planner re-resolved).** Values above are from the Hub tags API. Disposition: plan 03-03 Task 3 pins the digest it re-resolved at planning time (`postgres:17.11-bookworm`).
+20. **Status of the User Intents proposal and any live declarations (RESOLVED for planning - watch item, non-gating).** Disposition: no Phase 3 behaviour depends on it; it is re-read together with the terms before the Phase 6 deploy (non-gating row in 03-VALIDATION.md Manual-Only Verifications).
 
 ## Sources
 
