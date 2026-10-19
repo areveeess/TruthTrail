@@ -27,7 +27,7 @@ TYPE = "network.bsky.jetstream.subscribeEvents#"
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 ALLOW = frozenset({"example-news.test", "wire.test"})
 DID_RX = re.compile(r"^did:plc:[a-z2-7]{24}$")
-TOKEN13_RX = re.compile(r"^[a-z2-7]{13}$")
+RKEY_RX = re.compile(r"^[a-z2-7]{13}$")
 
 
 def ts(sec: float) -> str:
@@ -298,8 +298,8 @@ def test_counter_tokens_are_sequential_and_grammatical():
     assert DID_RX.match(first)
     assert maps.did("did:plc:two") != first
     assert maps.did("did:plc:one") == first
-    assert TOKEN13_RX.match(maps.rkey("anything"))
-    assert TOKEN13_RX.match(maps.rev("rev"))
+    assert RKEY_RX.match(maps.rkey("anything"))
+    assert RKEY_RX.match(maps.rev("rev"))
     assert maps.did_web == 0
     maps.did("did:web:example.test")
     assert maps.did_web == 1
@@ -1227,3 +1227,38 @@ def test_iter_tracked_rows_yields_roots_children_and_deletes_in_stream_order(con
     assert orders == sorted(orders)
     depths = [r.depth for r in rows if r.edge_kind == "reply" and not r.orphan]
     assert sorted(d for d in depths if d is not None) == [1, 2, 2, 3]
+
+
+def test_a_truncated_log_is_read_up_to_the_cut_and_counted(tmp_path):
+    build_constructed_log(tmp_path)
+    path = tmp_path / "wA.jsonl.gz"
+    data = path.read_bytes()
+    path.write_bytes(data[: len(data) - 40])  # cut inside the final deflate block
+    refs = analysis.discover_logs(tmp_path)
+    stats: Counter[str] = Counter()
+    frames = list(analysis.iter_frames(refs, stats))
+    assert stats["truncated_log"] == 1
+    assert 0 < len(frames) <= 28
+
+
+def test_an_active_account_without_a_status_field_stays_active_and_unknown_becomes_other():
+    maps = scrub.ScrubMaps()
+
+    def account(**acct):
+        return {
+            "$type": "message",
+            "payload": {
+                "$type": TYPE + "account",
+                "did": "did:plc:a",
+                "seq": 1,
+                "time": ts(1),
+                "account": acct,
+            },
+        }
+
+    active = scrub.scrub_frame(account(active=True, did="did:plc:a"), maps)
+    assert active["payload"]["account"]["status"] == "active"
+    other = scrub.scrub_frame(account(active=False, did="did:plc:a", status="bizarre"), maps)
+    assert other["payload"]["account"]["status"] == "other"
+    gone = scrub.scrub_frame(account(active=False, did="did:plc:a", status="deleted"), maps)
+    assert gone["payload"]["account"]["status"] == "deleted"

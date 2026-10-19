@@ -210,6 +210,14 @@ def scrub_record(collection: str, record: object, maps: ScrubMaps) -> dict[str, 
     return None
 
 
+def _account_status(acct: dict[str, Any]) -> str:
+    """Account status as recorded; an active account carries no status field."""
+    status = acct.get("status")
+    if isinstance(status, str):
+        return status if status in KNOWN_STATUS else "other"
+    return "active" if acct.get("active") is True else "other"
+
+
 def _str(value: object) -> str | None:
     return value if isinstance(value, str) else None
 
@@ -270,11 +278,11 @@ def scrub_frame(frame: dict[str, Any], maps: ScrubMaps) -> dict[str, Any] | None
         acct = payload.get("account")
         if not isinstance(acct, dict):
             return None
-        status = acct.get("status")
+        status = _account_status(acct)
         inner: dict[str, Any] = {
             "active": acct.get("active") is True,
             "did": mapped,
-            "status": status if status in KNOWN_STATUS else "other",
+            "status": status,
         }
         for key in ("seq",):
             if isinstance(acct.get(key), int):
@@ -347,11 +355,11 @@ def scrub_v1_frame(frame: dict[str, Any], maps: ScrubMaps) -> dict[str, Any] | N
         acct = frame.get("account")
         if not isinstance(acct, dict):
             return None
-        status = acct.get("status")
+        status = _account_status(acct)
         out["account"] = {
             "active": acct.get("active") is True,
             "did": out["did"],
-            "status": status if status in KNOWN_STATUS else "other",
+            "status": status,
         }
         return out
     return None

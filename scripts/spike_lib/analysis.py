@@ -196,22 +196,26 @@ def read_meta(ref: LogRef) -> dict[str, Any]:
 def iter_lines(path: Path, stats: Counter[str] | None = None) -> Iterator[tuple[int, str | None]]:
     """Yield (rx_ms, frame_text) for frame lines; malformed and control lines are only counted."""
     with gzip.open(path, "rt", encoding="utf-8", newline="\n") as handle:
-        for line in handle:
-            try:
-                item = json.loads(line)
-            except ValueError:
-                if stats is not None:
-                    stats["malformed_lines"] += 1
-                continue
-            if not isinstance(item, dict) or not isinstance(item.get("rx"), int):
-                if stats is not None:
-                    stats["malformed_lines"] += 1
-                continue
-            frame_text = item.get("f")
-            if isinstance(frame_text, str):
-                yield item["rx"], frame_text
-            elif stats is not None:
-                stats["control_lines"] += 1
+        try:
+            for line in handle:
+                try:
+                    item = json.loads(line)
+                except ValueError:
+                    if stats is not None:
+                        stats["malformed_lines"] += 1
+                    continue
+                if not isinstance(item, dict) or not isinstance(item.get("rx"), int):
+                    if stats is not None:
+                        stats["malformed_lines"] += 1
+                    continue
+                frame_text = item.get("f")
+                if isinstance(frame_text, str):
+                    yield item["rx"], frame_text
+                elif stats is not None:
+                    stats["control_lines"] += 1
+        except EOFError:  # a log that is still being written (or was killed) ends mid-stream
+            if stats is not None:
+                stats["truncated_log"] += 1
 
 
 def iter_frames(refs: Iterable[LogRef], stats: Counter[str] | None = None) -> Iterator[Frame]:
