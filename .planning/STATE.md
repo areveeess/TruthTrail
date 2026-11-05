@@ -3,12 +3,12 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 3
 current_phase_name: Real Propagation Data
-current_plan: Not started
-status: ready_to_execute
-stopped_at: Phase 3 planned (12 plans, plan checker passed); executing plan 03-01 (source spike) then owner gate
-last_updated: "2026-10-18T12:36:49.966Z"
-last_activity: 2026-10-18
-last_activity_desc: Phase 3 plans verified by plan checker; starting spike
+current_plan: 03-01 tasks 1-4 done; task 5 owner checkpoint pending
+status: awaiting_owner_ratification
+stopped_at: Plan 03-01 stopped at the Task 5 blocking owner checkpoint; 03-SPIKE.md is unratified (gate script exits 1); plans 03-02 to 03-12 must not start
+last_updated: "2026-10-19T14:20:00.000Z"
+last_activity: 2026-10-19
+last_activity_desc: Source spike run (7259.5 s measured on the live Jetstream), 03-SPIKE.md and the real fixture committed; owner ratification pending
 state_head: 7ce8bf637af0a3a203fe2210861a8f43eb77a906
 progress:
   total_phases: 6
@@ -31,10 +31,10 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 3 — Real Propagation Data
-Current Plan: Not started
+Current Plan: 03-01 (tasks 1-4 complete; Task 5 owner checkpoint pending)
 Total Plans in Phase: 12
-Status: Ready to plan
-Last activity: 2026-10-18 — Phase 2 complete, transitioned to Phase 3
+Status: Awaiting owner ratification of 03-SPIKE.md (D-02 gate)
+Last activity: 2026-10-19 — spike run, decision document and fixture committed
 
 Progress: [███░░░░░░░] 33%
 
