@@ -454,6 +454,8 @@ class Collector:
         self.skew_old_1h = 0
         self.skew_absurd = 0
         self.created_us: dict[int, int] = {}
+        # children seen before their target was created in this window: target hash -> count
+        self.pending_targets: Counter[int] = Counter()
         self.repost_subject: dict[int, int] = {}
         self.pair_both = 0
         self.pair_child_first = 0
@@ -522,6 +524,7 @@ class Collector:
         self.stored = {}
         self.roots = {}
         self.created_us = {}
+        self.pending_targets = Counter()
         self.repost_subject = {}
         self.cur_first = None
         self.cur_last = None
@@ -612,6 +615,10 @@ class Collector:
             if frame.did and frame.did.startswith("did:web:"):
                 self.did_web_authors += 1
             self.created_us[hash(uri)] = frame.time_us or 0
+            waiting = self.pending_targets.pop(hash(uri), 0)
+            if waiting:  # children that arrived before this record (child-before-parent)
+                self.pair_both += waiting
+                self.pair_child_first += waiting
             if coll == sel.POST_COLLECTION:
                 self._post(frame, uri, frame.record)
             else:
@@ -738,7 +745,13 @@ class Collector:
         self.refs[(bucket, hash(target))] += 1
 
     def _pair(self, frame: Frame, target: str | None) -> None:
-        """Count a (child, parent) pair whose parent frame is also in the window (S-4)."""
+        """Count a (child, parent) pair whose parent frame is also in the window (S-4).
+
+        A child whose target has not been created yet is remembered in ``pending_targets``; if the
+        target is created later in the same window the pair is counted as child-before-parent.
+        (Before this fix only pairs whose parent was already seen were counted, so a child that
+        arrived first could never be counted: the spike's "0 child before parent" was unmeasured.)
+        """
         if target is None or frame.time_us is None:
             return
         target_time = self.created_us.get(hash(target))
@@ -746,6 +759,8 @@ class Collector:
             self.pair_both += 1
             if target_time > frame.time_us:
                 self.pair_child_first += 1
+        else:
+            self.pending_targets[hash(target)] += 1
 
     def _attach(self, frame: Frame, uri: str, edge: sel.Edge) -> bool:
         """Store the event under a tracked cascade when its parent or root is stored."""

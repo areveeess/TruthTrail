@@ -30,8 +30,9 @@ Paste the printed summary (counts and rates only: no account, post text or link)
 "Windows result (S-12)" block of 03-SPIKE.md.
 
 Subcommands: probe, record, cursor-test, reconnect-test, appview-check, storage-probe, analyze,
-cut-fixture. Exit codes: 0 ok, 2 usage error or cap rejected, 3 stopped on HTTP 401 or 403,
-4 unavailable (missing websockets or PostgreSQL binaries), 5 source failed after the retry budget.
+cut-fixture, rescrub-fixture. Exit codes: 0 ok, 2 usage error or cap rejected, 3 stopped on HTTP
+401 or 403, 4 unavailable (missing websockets or PostgreSQL binaries), 5 source failed after the
+retry budget.
 Standard library plus ``websockets``; output is counts and rates only.
 """
 
@@ -924,6 +925,18 @@ def cmd_cut_fixture(args: argparse.Namespace, _deps: Deps) -> int:
     return EXIT_OK
 
 
+def cmd_rescrub_fixture(args: argparse.Namespace, _deps: Deps) -> int:
+    """Apply scrub-2 to the committed fixture (no raw log needed); prints counts only."""
+    out_dir: Path = args.out
+    if not (out_dir / f"bluesky-{args.date}.manifest.json").exists():
+        err("rescrub-fixture: no manifest for that date in --out")
+        return EXIT_USAGE
+    manifest = scrub.rescrub_fixture(out_dir, args.date)
+    out(f"rescrub-fixture: {json.dumps(manifest['scrub2'], sort_keys=True)}")
+    out(f"coverage: {json.dumps(manifest['coverage'], sort_keys=True)}")
+    return EXIT_OK
+
+
 # ----------------------------------------------------------------------------- storage probe
 
 
@@ -1408,6 +1421,17 @@ def build_parser() -> argparse.ArgumentParser:
     cut.add_argument("--small-sample", type=int, default=60)
     cut.add_argument("--samples", type=Path, default=None)
     cut.add_argument("--check", action="store_true")
+
+    rescrub = sub.add_parser(
+        "rescrub-fixture",
+        help="apply the scrub-2 URL and adult-label pass to the committed fixture in place",
+    )
+    rescrub.add_argument(
+        "--out",
+        type=resolve_fixture_out,
+        default=REPO_ROOT / "src" / "truthtrail" / "data" / "recorded",
+    )
+    rescrub.add_argument("--date", required=True)
     return parser
 
 
@@ -1451,6 +1475,8 @@ def main(argv: list[str] | None = None, deps: Deps | None = None) -> int:
             return run_storage_probe(args, deps)
         if args.command == "analyze":
             return cmd_analyze(args, deps)
+        if args.command == "rescrub-fixture":
+            return cmd_rescrub_fixture(args, deps)
         return cmd_cut_fixture(args, deps)
     except AuthStop as exc:
         err(f"stopped: {exc}; no retry, no data substituted (exit 3)")

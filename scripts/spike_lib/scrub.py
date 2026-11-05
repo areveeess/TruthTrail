@@ -2,8 +2,12 @@
 
 Scrubbing is a pure transform of a recorded frame: DIDs, rkeys and revs become SEQUENTIAL counter
 tokens in the real field names (never random, never keyed); ``cid``, free text, link-card text and
-thumbnails are dropped; URLs keep scheme, host and path. Nothing here uses ``random``; every
-ordering is by sha256 of the raw URI, so two cuts of the same raw logs are byte-identical.
+thumbnails are dropped; URLs keep scheme, host and path (scrub-1). The host-aware URL rule of
+scrub-2 (``rescrub``) then runs over the scrubbed frames: publisher paths on the allowlist stay
+(selection needs them) with opaque ids replaced, shorteners keep their host only, and every other
+URL becomes a numbered ``.invalid`` placeholder; adult self-labelled posts are dropped (D-13).
+Nothing here uses ``random``; every ordering is by sha256 of the raw URI or by first-seen order,
+so two cuts of the same raw logs are byte-identical.
 """
 
 from __future__ import annotations
@@ -12,7 +16,8 @@ import hashlib
 import json
 import re
 import subprocess
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Iterable, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -21,7 +26,7 @@ from spike_lib import selection as sel
 from spike_lib.analysis import Cascade, Collector, Frame, parse_time_us
 
 TID = "234567abcdefghijklmnopqrstuvwxyz"
-SCRUBBER_VERSION = "scrub-1"
+SCRUBBER_VERSION = "scrub-2"
 SOURCE_MODE = "recorded-real"
 DID_PREFIX = "did:plc:"
 TYPE_PREFIX = "network.bsky.jetstream.subscribeEvents#"
@@ -112,6 +117,168 @@ def strip_url(url: object) -> str | None:
     if parts.scheme.lower() not in ("http", "https") or not host:
         return None
     return f"{parts.scheme.lower()}://{host.lower()}{_HEX_RUN.sub(_unhex, parts.path)}"
+
+
+# ----------------------------------------------------------------------------- scrub-2 (URL hosts)
+
+# Hosts whose URLs name a person, an account or a personal page: always replaced by a placeholder,
+# even if a future allowlist edit listed them. A host matches by equality or as a subdomain.
+ALWAYS_REPLACED_HOSTS = (
+    "bsky.app",
+    "bsky.social",
+    "bsky.network",
+    "substack.com",
+    "note.com",
+    "t.me",
+    "x.com",
+    "twitter.com",
+    "instagram.com",
+    "facebook.com",
+    "tiktok.com",
+    "linktr.ee",
+    "bandcamp.com",
+    "blogspot.com",
+)
+PLACEHOLDER_HOST_SUFFIX = ".invalid"
+_UUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+_HEX20 = re.compile(r"[0-9a-fA-F]{20,}")
+
+
+def _host_in(host: str, suffixes: Iterable[str]) -> bool:
+    return any(host == s or host.endswith("." + s) for s in suffixes)
+
+
+@dataclass
+class Rescrub:
+    """First-seen-order state of one scrub-2 pass (one token universe per file).
+
+    Placeholders are numbered PER DISTINCT URL (not per host): two links to the same personal page
+    share a placeholder, two different pages on one personal host do not, so the fixture does not
+    even reveal that two posts linked the same non-listed site unless they linked the same URL.
+    """
+
+    allowlist: Collection[str]
+    placeholders: dict[str, str] = field(default_factory=dict)
+    ids: dict[str, str] = field(default_factory=dict)
+    urls_kept: int = 0
+    urls_host_only: int = 0
+    urls_replaced: int = 0
+    ids_mapped: int = 0
+    frames_dropped_adult: int = 0
+    gift_links: int = 0
+
+    def _id(self, match: re.Match[str]) -> str:
+        text = match.group(0).lower()
+        if text not in self.ids:
+            self.ids[text] = f"id{len(self.ids) + 1:04d}"
+        self.ids_mapped += 1
+        return self.ids[text]
+
+    def url(self, url: str) -> str:
+        """Apply the host-aware rule to one URL string (already reduced to scheme, host, path)."""
+        scheme, host, path = "", "", ""
+        try:
+            parts = urlsplit(url.strip())
+            scheme, host, path = parts.scheme.lower(), (parts.hostname or "").lower(), parts.path
+        except ValueError:
+            pass
+        match_host = host[4:] if host.startswith("www.") else host
+        if (
+            host
+            and scheme in ("http", "https")
+            and not _host_in(match_host, ALWAYS_REPLACED_HOSTS)
+            and not match_host.endswith(PLACEHOLDER_HOST_SUFFIX)
+        ):
+            domain = sel.match_domain(match_host, self.allowlist)
+            if domain is not None:
+                self.urls_kept += 1
+                if host.startswith("giftarticle."):
+                    # a gift link is tied to the subscriber who made it: keep only the publisher
+                    self.gift_links += 1
+                    return f"{scheme}://{domain}/"
+                if "/redeem/" in path.lower():
+                    return f"{scheme}://{host}/"
+                path = _UUID.sub(self._id, path)
+                path = _HEX20.sub(self._id, path)
+                return f"{scheme}://{host}{path}"
+            if sel.is_shortener(match_host):
+                self.urls_host_only += 1
+                return f"{scheme}://{host}/"
+        # Everything else, including an existing placeholder (it keeps its first-seen number, so
+        # a second pass is the identity).
+        self.urls_replaced += 1
+        if url not in self.placeholders:
+            n = len(self.placeholders) + 1
+            self.placeholders[url] = f"https://nonlisted-{n}{PLACEHOLDER_HOST_SUFFIX}/"
+        return self.placeholders[url]
+
+    def value(self, value: object) -> object:
+        """Rewrite every http(s) string anywhere inside a decoded JSON value."""
+        if isinstance(value, dict):
+            return {k: self.value(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [self.value(v) for v in value]
+        if isinstance(value, str) and re.match(r"(?i)^https?://", value):
+            return self.url(value)
+        return value
+
+
+def _post_records(value: object) -> Iterable[dict[str, Any]]:
+    """Every post record inside a decoded frame (v2 payload, v1 commit or a samples row)."""
+    if isinstance(value, dict):
+        if value.get("$type") == sel.POST_COLLECTION:
+            yield value
+        for inner in value.values():
+            yield from _post_records(inner)
+    elif isinstance(value, list):
+        for inner in value:
+            yield from _post_records(inner)
+
+
+def is_adult_labelled(frame: object) -> bool:
+    """True when any post record in the frame carries an adult self-label (D-13)."""
+    return any(set(sel.record_labels(r)) & sel.ADULT_LABELS for r in _post_records(frame))
+
+
+def _record_key(frame: dict[str, Any]) -> tuple[str, str, str] | None:
+    body = frame.get("payload") if "payload" in frame else frame.get("frame", frame)
+    if not isinstance(body, dict):
+        return None
+    if isinstance(body.get("payload"), dict):  # a samples row wraps a v2 envelope
+        body = body["payload"]
+    inner = body.get("commit")
+    commit: dict[str, Any] = inner if isinstance(inner, dict) else body
+    did, coll, rkey = body.get("did"), commit.get("collection"), commit.get("rkey")
+    if isinstance(did, str) and isinstance(coll, str) and isinstance(rkey, str):
+        return (did, coll, rkey)
+    return None
+
+
+def rescrub(
+    frames: Sequence[dict[str, Any]], allowlist: Collection[str]
+) -> tuple[list[dict[str, Any]], Rescrub]:
+    """scrub-2: a pure, deterministic pass over already-scrubbed frames.
+
+    Drops every frame whose post record carries an adult self-label, together with any delete of
+    that record, and applies the host-aware URL rule to every http(s) string. Returns the new frames
+    and the pass state (counters only). Running it twice gives the same output (idempotent).
+    """
+    state = Rescrub(allowlist=allowlist)
+    dropped: set[tuple[str, str, str]] = set()
+    for frame in frames:
+        if is_adult_labelled(frame):
+            key = _record_key(frame)
+            if key is not None:
+                dropped.add(key)
+    out: list[dict[str, Any]] = []
+    for frame in frames:
+        if is_adult_labelled(frame) or _record_key(frame) in dropped:
+            state.frames_dropped_adult += 1
+            continue
+        rewritten = state.value(frame)
+        if isinstance(rewritten, dict):  # always true: value() maps a dict to a dict
+            out.append(rewritten)
+    return out, state
 
 
 def _ref(maps: ScrubMaps, ref: object) -> dict[str, str] | None:
@@ -393,10 +560,21 @@ def _frame_uri(payload: dict[str, Any]) -> str | None:
     return None
 
 
+def _has_adult_or_hidden_label(record: object) -> bool:
+    """Adult or ``!no-unauthenticated`` self-label, counted whatever gate refused the post first."""
+    labels = set(sel.record_labels(record))
+    return bool(labels & sel.ADULT_LABELS) or sel.NO_UNAUTHENTICATED_LABEL in labels
+
+
 def compute_coverage(
     frames: Sequence[dict[str, Any]], allowlist: Collection[str], *, require_lang: str = "en"
 ) -> dict[str, Any]:
-    """Replay the written (scrubbed) frames under the recorded policy and count what it sees."""
+    """Replay the written (scrubbed) frames under the recorded policy and count what it sees.
+
+    ``negative_controls.adult_labelled`` counts every negative-control post that carries an adult
+    or ``!no-unauthenticated`` self-label, independent of the reason category (scrub-1 counted it
+    only when the label was the refusal reason, which hid labelled posts refused earlier).
+    """
     stored: dict[str, tuple[int, int | None]] = {}  # uri -> (cascade index, depth)
     roots = 0
     children = {"reply": 0, "quote": 0, "repost": 0}
@@ -448,12 +626,11 @@ def compute_coverage(
                 roots += 1
                 continue
             neg["total"] += 1
+            neg["adult_labelled"] += int(_has_adult_or_hidden_label(record))
             if decision.reason == "not_allowlisted" and sel.link_urls(record):
                 neg["near_miss_non_allowlisted"] += 1
             elif decision.reason == "lang":
                 neg["non_english_allowlisted"] += 1
-            elif decision.reason in ("adult_label", "no_unauthenticated_label"):
-                neg["adult_labelled"] += 1
             elif decision.reason == "shortener":
                 neg["shortener"] += 1
             continue
@@ -464,6 +641,7 @@ def compute_coverage(
             orphan = True
         if parent is None:
             neg["total"] += 1
+            neg["adult_labelled"] += int(_has_adult_or_hidden_label(record))
             if edge.kind == "reply" and sel.link_urls(record):
                 neg["reply_with_link"] += 1
             continue
@@ -578,7 +756,6 @@ def select_frames(
     for name, limit in (
         ("near:non_allowlisted", 10),
         ("near:non_english_allowlisted", 10),
-        ("near:adult_labelled", 3),
         ("near:shortener", 3),
         ("near:reply_with_link", 5),
     ):
@@ -630,6 +807,27 @@ def scrub_samples(samples: Sequence[dict[str, Any]]) -> list[str]:
     return lines
 
 
+def scrub2_summary(main: Rescrub, samples: Rescrub) -> dict[str, Any]:
+    """Counters of the scrub-2 pass for the manifest (counts only, never a URL)."""
+
+    def one(state: Rescrub) -> dict[str, int]:
+        return {
+            "frames_dropped_adult_label": state.frames_dropped_adult,
+            "gift_links_reduced_to_publisher": state.gift_links,
+            "ids_mapped": state.ids_mapped,
+            "urls_kept_allowlisted": state.urls_kept,
+            "urls_host_only_shortener": state.urls_host_only,
+            "urls_replaced_placeholder": state.urls_replaced,
+            "placeholders_distinct": len(state.placeholders),
+        }
+
+    return {
+        "placeholder_numbering": "per distinct URL, first-seen order, one universe per file",
+        "main": one(main),
+        "samples": one(samples),
+    }
+
+
 def cut(
     collector: Collector,
     *,
@@ -643,11 +841,19 @@ def cut(
     small_sample: int = 60,
     tool_sha: str | None = None,
 ) -> dict[str, Any]:
-    """Cut the fixture from an extraction (``keep_rows=True``); returns the manifest dictionary."""
+    """Cut the fixture from an extraction (``keep_rows=True``); returns the manifest dictionary.
+
+    The size budget is applied to the scrub-1 line sizes; the scrub-2 pass only shortens URLs or
+    drops frames, except that a very short non-listed URL can grow to its placeholder, which the
+    final size check in the tests covers.
+    """
     fixed, groups, negatives = select_frames(
         collector, min_children=min_children, small_sample=small_sample
     )
-    sample_lines = scrub_samples(samples)
+    sample_rows, sample_pass = rescrub(
+        [json.loads(line) for line in scrub_samples(samples)], allowlist
+    )
+    sample_lines = [dumps(row) for row in sample_rows]
     sample_bytes = sum(len(line) + 1 for line in sample_lines)
     pool = {f.order: f for f in fixed}
     for frame in negatives:
@@ -671,7 +877,6 @@ def cut(
                 total -= sizes.get(order, 0)
     keep = [f for o, f in sorted(pool.items()) if o not in dropped_orders]
     maps = ScrubMaps()
-    lines: list[str] = []
     envelopes: list[dict[str, Any]] = []
     scrubber_dropped = 0
     for frame in keep:
@@ -680,7 +885,8 @@ def cut(
             scrubber_dropped += 1
             continue
         envelopes.append(scrubbed)
-        lines.append(dumps(scrubbed))
+    envelopes, main_pass = rescrub(envelopes, allowlist)
+    lines = [dumps(env) for env in envelopes]
     out_dir.mkdir(parents=True, exist_ok=True)
     main_path = out_dir / f"bluesky-{date}.jsonl"
     samples_path = out_dir / f"bluesky-{date}.samples.jsonl"
@@ -714,7 +920,9 @@ def cut(
         "start_stream_us": min(times) if times else None,
         "end_stream_us": max(times) if times else None,
         "counts_by_kind": counts_by_kind(envelopes),
-        "frames_dropped_by_scrubber": scrubber_dropped,
+        "frames_dropped_by_scrubber": scrubber_dropped + main_pass.frames_dropped_adult,
+        "scrub2": scrub2_summary(main_pass, sample_pass),
+        "privacy": PRIVACY_NOTES,
         "did_web_count": maps.did_web,
         "coverage": compute_coverage(envelopes, allowlist),
         "trimmed": trimmed,
@@ -732,6 +940,123 @@ def cut(
         },
         "windows": windows,
     }
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
+    )
+    return manifest
+
+
+# ----------------------------------------------------------------------------- scrub-2 re-pass
+
+REMOVAL_CONTACT = "https://github.com/areveeess/TruthTrail/issues"
+PRIVACY_NOTES = {
+    "status": (
+        "Pseudonymised, not anonymised. DIDs, rkeys and revs are sequential counter tokens and "
+        "non-listed links are placeholders, but stream times, sequence numbers and createdAt are "
+        "kept, so a party holding a third-party archive of the public network can join a frame "
+        "back to the original record."
+    ),
+    "sampling": (
+        "Stratified and enriched for cascades (every recorded cascade with at least 3 children, "
+        "a hash-ordered sample of smaller ones, and chosen negative controls and shapes). Counts "
+        "in this file are not rates of the network: never use it to estimate shares or rates; "
+        "03-SPIKE.md holds the measured rates."
+    ),
+    "samples_file": (
+        "bluesky-<date>.samples.jsonl holds the real probe frames: one row per dialect sample "
+        "(v1 legacy wire and v2 envelopes) plus the cursor-test control shapes (#info "
+        "OutdatedCursor and FutureCursor). It is scrubbed with its own token and placeholder "
+        "universe, so its tokens never join to the main file."
+    ),
+    "adult_content": (
+        "Frames carrying an adult self-label (porn, sexual, nudity, graphic-media) are dropped "
+        "(D-13); tests that need one build a constructed frame."
+    ),
+    "removal_requests": (
+        "To ask for a record to be removed from this fixture, open an issue at "
+        + REMOVAL_CONTACT
+        + " (do not paste the record's handle or link in public; ask for a private contact)."
+    ),
+}
+
+
+def rescrub_fixture(out_dir: Path, date: str) -> dict[str, Any]:
+    """Apply scrub-2 to an already committed scrub-1 fixture in place and update its manifest.
+
+    Pure and deterministic: the inputs are the committed files and the allowlist recorded in the
+    manifest (the one the fixture was cut with); the raw logs are not needed and not read.
+    """
+    main_path = out_dir / f"bluesky-{date}.jsonl"
+    samples_path = out_dir / f"bluesky-{date}.samples.jsonl"
+    manifest_path = out_dir / f"bluesky-{date}.manifest.json"
+    manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+    allowlist = list(manifest["selection_policy"]["allowlist_domains"])
+    if manifest.get("scrubber_version") == SCRUBBER_VERSION:
+        # Already applied: the pass is a fixed point, so nothing is rewritten and the recorded
+        # counters of the first pass stay.
+        for path in (main_path, samples_path):
+            rows = [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines()]
+            if rescrub(rows, allowlist)[0] != rows:
+                raise ValueError(
+                    f"{path.name} is marked {SCRUBBER_VERSION} but is not a fixed point"
+                )
+        return manifest
+    pre = {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in (main_path, samples_path)
+    }
+    main_rows = [json.loads(x) for x in main_path.read_text(encoding="utf-8").splitlines()]
+    sample_rows = [json.loads(x) for x in samples_path.read_text(encoding="utf-8").splitlines()]
+    labelled_before = compute_coverage(
+        main_rows, allowlist, require_lang=manifest["selection_policy"]["require_lang"]
+    )["negative_controls"]["adult_labelled"]
+    main_out, main_pass = rescrub(main_rows, allowlist)
+    samples_out, sample_pass = rescrub(sample_rows, allowlist)
+    for path, rows in ((main_path, main_out), (samples_path, samples_out)):
+        path.write_text("".join(dumps(r) + "\n" for r in rows), encoding="utf-8", newline="\n")
+    times = [
+        t
+        for env in main_out
+        if (t := parse_time_us(env.get("payload", {}).get("time"))) is not None
+    ]
+    files = []
+    for path, count in ((main_path, len(main_out)), (samples_path, len(samples_out))):
+        data = path.read_bytes()
+        files.append(
+            {
+                "name": path.name,
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "lines": count,
+            }
+        )
+    previous = manifest.get("scrubber_version")
+    manifest.update(
+        {
+            "scrubber_version": SCRUBBER_VERSION,
+            "start_stream_us": min(times) if times else None,
+            "end_stream_us": max(times) if times else None,
+            "counts_by_kind": counts_by_kind(main_out),
+            "coverage": compute_coverage(
+                main_out, allowlist, require_lang=manifest["selection_policy"]["require_lang"]
+            ),
+            "frames_dropped_by_scrubber": int(manifest.get("frames_dropped_by_scrubber", 0))
+            + main_pass.frames_dropped_adult,
+            "rescrub": {
+                "from_version": previous,
+                "to_version": SCRUBBER_VERSION,
+                "method": (
+                    "scripts/bluesky_spike.py rescrub-fixture: a pure pass over the committed "
+                    "files (raw logs were deleted after the first cut and are not needed)"
+                ),
+                "pre_pass_sha256": pre,
+                "adult_labelled_negative_controls_before_drop": labelled_before,
+            },
+            "files": files,
+            "scrub2": scrub2_summary(main_pass, sample_pass),
+            "privacy": PRIVACY_NOTES,
+        }
+    )
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n"
     )

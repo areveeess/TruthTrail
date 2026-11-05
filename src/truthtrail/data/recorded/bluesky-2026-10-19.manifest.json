@@ -1,0 +1,226 @@
+{
+  "collections": [
+    "app.bsky.feed.post",
+    "app.bsky.feed.repost"
+  ],
+  "counts_by_kind": {
+    "account": 22,
+    "info": 0,
+    "post_create": 605,
+    "post_delete": 15,
+    "repost_create": 525,
+    "repost_delete": 10,
+    "sync": 3
+  },
+  "coverage": {
+    "account_events_by_status": {
+      "active": 5,
+      "deactivated": 5,
+      "deleted": 5,
+      "takendown": 5,
+      "throttled": 2
+    },
+    "cascades_with_depth2_replies": 38,
+    "cascades_with_quotes": 22,
+    "cascades_with_replies": 75,
+    "cascades_with_reposts": 75,
+    "children_by_kind": {
+      "quote": 29,
+      "reply": 245,
+      "repost": 382
+    },
+    "deletes": {
+      "post": 5,
+      "repost": 5
+    },
+    "negative_controls": {
+      "adult_labelled": 0,
+      "near_miss_non_allowlisted": 40,
+      "non_english_allowlisted": 10,
+      "reply_with_link": 7,
+      "shortener": 3,
+      "total": 325
+    },
+    "orphan_replies": 1,
+    "sync_events": 3,
+    "tracked_roots": 149
+  },
+  "date": "2026-10-19",
+  "dialects": [
+    "v2"
+  ],
+  "did_web_count": 1,
+  "end_stream_us": 1792418225274755,
+  "files": [
+    {
+      "bytes": 678985,
+      "lines": 1180,
+      "name": "bluesky-2026-10-19.jsonl",
+      "sha256": "4ef9bd30a8d67a361488186822ad4193348f42f4fd3ddd483fd08c3dbe3ad91d"
+    },
+    {
+      "bytes": 2836,
+      "lines": 7,
+      "name": "bluesky-2026-10-19.samples.jsonl",
+      "sha256": "59a2ab8c5054f46328d336136fbfb810fb0a8d1ae1e074d63ddcb1f370878015"
+    }
+  ],
+  "frames_dropped_by_scrubber": 3,
+  "privacy": {
+    "adult_content": "Frames carrying an adult self-label (porn, sexual, nudity, graphic-media) are dropped (D-13); tests that need one build a constructed frame.",
+    "removal_requests": "To ask for a record to be removed from this fixture, open an issue at https://github.com/areveeess/TruthTrail/issues (do not paste the record's handle or link in public; ask for a private contact).",
+    "samples_file": "bluesky-<date>.samples.jsonl holds the real probe frames: one row per dialect sample (v1 legacy wire and v2 envelopes) plus the cursor-test control shapes (#info OutdatedCursor and FutureCursor). It is scrubbed with its own token and placeholder universe, so its tokens never join to the main file.",
+    "sampling": "Stratified and enriched for cascades (every recorded cascade with at least 3 children, a hash-ordered sample of smaller ones, and chosen negative controls and shapes). Counts in this file are not rates of the network: never use it to estimate shares or rates; 03-SPIKE.md holds the measured rates.",
+    "status": "Pseudonymised, not anonymised. DIDs, rkeys and revs are sequential counter tokens and non-listed links are placeholders, but stream times, sequence numbers and createdAt are kept, so a party holding a third-party archive of the public network can join a frame back to the original record."
+  },
+  "rescrub": {
+    "adult_labelled_negative_controls_before_drop": 3,
+    "from_version": "scrub-1",
+    "method": "scripts/bluesky_spike.py rescrub-fixture: a pure pass over the committed files (raw logs were deleted after the first cut and are not needed)",
+    "pre_pass_sha256": {
+      "bluesky-2026-10-19.jsonl": "6e39a1f9a460a15a2ccdcc8d8830d624d60d3f511738a999653fc943018a1d7e",
+      "bluesky-2026-10-19.samples.jsonl": "a0beaefb1c39b9bba3d520ec98c7a9cdf617c28329522caafbdb2ffb9a388b3c"
+    },
+    "to_version": "scrub-2"
+  },
+  "scrub2": {
+    "main": {
+      "frames_dropped_adult_label": 3,
+      "gift_links_reduced_to_publisher": 2,
+      "ids_mapped": 13,
+      "placeholders_distinct": 78,
+      "urls_host_only_shortener": 4,
+      "urls_kept_allowlisted": 285,
+      "urls_replaced_placeholder": 113
+    },
+    "placeholder_numbering": "per distinct URL, first-seen order, one universe per file",
+    "samples": {
+      "frames_dropped_adult_label": 0,
+      "gift_links_reduced_to_publisher": 0,
+      "ids_mapped": 0,
+      "placeholders_distinct": 1,
+      "urls_host_only_shortener": 0,
+      "urls_kept_allowlisted": 0,
+      "urls_replaced_placeholder": 1
+    }
+  },
+  "scrubber_version": "scrub-2",
+  "selection_policy": {
+    "allowlist_domains": [
+      "abc.net.au",
+      "afp.com",
+      "africacheck.org",
+      "apnews.com",
+      "bbc.co.uk",
+      "bbc.com",
+      "bloomberg.com",
+      "bostonglobe.com",
+      "cbc.ca",
+      "checkyourfact.com",
+      "chicagotribune.com",
+      "csmonitor.com",
+      "dw.com",
+      "factcheck.afp.com",
+      "factcheck.org",
+      "france24.com",
+      "ft.com",
+      "fullfact.org",
+      "hindustantimes.com",
+      "independent.co.uk",
+      "irishtimes.com",
+      "japantimes.co.jp",
+      "latimes.com",
+      "leadstories.com",
+      "nature.com",
+      "newscientist.com",
+      "npr.org",
+      "nytimes.com",
+      "nzherald.co.nz",
+      "pbs.org",
+      "politifact.com",
+      "reuters.com",
+      "rnz.co.nz",
+      "rte.ie",
+      "science.org",
+      "sciencenews.org",
+      "scientificamerican.com",
+      "scmp.com",
+      "smh.com.au",
+      "snopes.com",
+      "statnews.com",
+      "straitstimes.com",
+      "telegraph.co.uk",
+      "theage.com.au",
+      "theaustralian.com.au",
+      "theglobeandmail.com",
+      "theguardian.com",
+      "thehindu.com",
+      "thestar.com",
+      "thetimes.co.uk",
+      "upi.com",
+      "usatoday.com",
+      "washingtonpost.com",
+      "wsj.com"
+    ],
+    "max_active_roots": null,
+    "max_events_per_cascade": 5000,
+    "require_lang": "en",
+    "root_ttl_hours": 48,
+    "sample_per_10k": 10000
+  },
+  "size_budget_bytes": 1500000,
+  "source_mode": "recorded-real",
+  "sources": [
+    "jetstream.us-east.bsky.network"
+  ],
+  "start_stream_us": 1792395721798854,
+  "tool_git_sha": "8e37d757ddaa4f7fd32621110e8ee117d435449f",
+  "trimmed": false,
+  "windows": [
+    {
+      "bound_seconds": 3660.0,
+      "bytes": 176504321,
+      "dialect": "v2",
+      "first_us": 1792395708073504,
+      "frames": 207687,
+      "host": "jetstream.us-east.bsky.network",
+      "label": "w1",
+      "last_us": 1792399367472878,
+      "max_bytes": 800000000,
+      "raw_bytes": 55291809,
+      "raw_sha256": "0729f7fb54615c8c0265f47819338450951df4d36fb02b7b1f68579a0db0adf0",
+      "stop_reason": "seconds",
+      "stream_seconds": 3659.399374
+    },
+    {
+      "bound_seconds": 1800.0,
+      "bytes": 169320963,
+      "dialect": "v2",
+      "first_us": 1792411841972337,
+      "frames": 190019,
+      "host": "jetstream.us-east.bsky.network",
+      "label": "w2",
+      "last_us": 1792413642775519,
+      "max_bytes": 400000000,
+      "raw_bytes": 51277198,
+      "raw_sha256": "1eff7899fa238df1eb7e6514c861e04e0a9ff27a51e79d34bc0ad9a4df7556e5",
+      "stop_reason": "seconds",
+      "stream_seconds": 1800.803182
+    },
+    {
+      "bound_seconds": 1800.0,
+      "bytes": 151047689,
+      "dialect": "v2",
+      "first_us": 1792416428173653,
+      "frames": 185778,
+      "host": "jetstream.us-east.bsky.network",
+      "label": "w3",
+      "last_us": 1792418227510055,
+      "max_bytes": 400000000,
+      "raw_bytes": 47254527,
+      "raw_sha256": "6365bdac31472a7e584f2ac6e4f94693994b8ec7ebdb56f288cb509ed0981d2c",
+      "stop_reason": "seconds",
+      "stream_seconds": 1799.336402
+    }
+  ]
+}

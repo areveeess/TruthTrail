@@ -180,6 +180,18 @@ def test_dockerignore_excludes_the_sensitive_and_legacy_paths() -> None:
     assert any(entry.startswith(".env") for entry in entries), "no environment-file pattern"
 
 
+def test_the_recorded_fixture_stays_out_of_the_image_while_no_runtime_code_reads_it() -> None:
+    package = ROOT / "src" / "truthtrail"
+    readers = [
+        path.relative_to(ROOT).as_posix()
+        for path in package.rglob("*.py")
+        if "data/recorded" in path.read_text(encoding="utf-8")
+        or '"recorded"' in path.read_text(encoding="utf-8")
+    ]
+    if not readers:
+        assert "src/truthtrail/data/recorded" in _dockerignore()
+
+
 def test_project_has_no_readme_key_so_dockerignored_markdown_cannot_break_the_build() -> None:
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     assert "readme" not in project

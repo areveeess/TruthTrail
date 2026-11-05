@@ -1065,7 +1065,7 @@ def test_cutter_is_deterministic_and_manifest_has_the_data_contract(constructed,
         == (first["windows"][0]["last_us"] - first["windows"][0]["first_us"]) / 1e6
     )
     assert first["counts_by_kind"] == {
-        "post_create": 17,
+        "post_create": 16,  # the adult-labelled post is dropped by scrub-2 (D-13)
         "repost_create": 3,
         "post_delete": 2,
         "repost_delete": 0,
@@ -1087,15 +1087,18 @@ def test_cutter_is_deterministic_and_manifest_has_the_data_contract(constructed,
     assert cov["account_events_by_status"] == {"deleted": 1, "other": 1, "takendown": 1}
     assert cov["sync_events"] == 1
     assert cov["negative_controls"] == {
-        "total": 9,
+        "total": 8,
         "near_miss_non_allowlisted": 1,
         "non_english_allowlisted": 1,
-        "adult_labelled": 1,
+        "adult_labelled": 0,
         "shortener": 1,
         "reply_with_link": 1,
     }
     assert first["trimmed"] is False
-    assert first["frames_dropped_by_scrubber"] == 0
+    assert first["frames_dropped_by_scrubber"] == 1
+    assert first["scrubber_version"] == "scrub-2"
+    assert first["scrub2"]["main"]["frames_dropped_adult_label"] == 1
+    assert set(first["privacy"]) >= {"status", "sampling", "samples_file", "removal_requests"}
 
 
 def test_cut_fixture_has_no_text_cid_queries_or_raw_identifiers(constructed, tmp_path):
@@ -1277,3 +1280,40 @@ def test_long_hex_runs_in_a_url_path_never_survive_the_scrub():
     assert scrub.strip_url(f"https://news.example/article/{digits}/story") == one
     short = "https://news.example/article/12345abcde"
     assert scrub.strip_url(short) == short
+
+
+def test_child_before_parent_is_counted_when_the_target_arrives_later(tmp_path):
+    """Constructed 3-frame log: a reply and a repost arrive before their root -> 2 child-first."""
+    b = LogBuilder()
+    root = uri("cbpauthor", "cbproot")
+    b.commit(
+        1,
+        "cbpreplier",
+        POST,
+        "cbpreply",
+        constructed_post(reply={"root": {"uri": root}, "parent": {"uri": root}}, langs=["en"]),
+    )
+    b.commit(
+        2,
+        "cbpreposter",
+        REPOST,
+        "cbprepost",
+        {"$type": REPOST, "subject": {"uri": root}, "createdAt": ts(2)},
+    )
+    b.commit(3, "cbpauthor", POST, "cbproot", constructed_post(langs=["en"]))
+    path = tmp_path / "wC.jsonl.gz"
+    with gzip.open(path, "wt", encoding="utf-8", newline="\n") as handle:
+        for index, frame in enumerate(b.frames):
+            handle.write(json.dumps({"rx": 1_700_000_000_000 + index, "f": frame}) + "\n")
+    meta = {
+        "host": "constructed.example",
+        "dialect": "v2",
+        "bound_seconds": 10,
+        "max_bytes": 10**6,
+        "stop_reason": "seconds",
+    }
+    (tmp_path / "wC.meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    results, _collector, _stats = analysis.analyze_logs(analysis.discover_logs(tmp_path), ALLOW)
+    s4 = results["combined"]["s4"]
+    assert s4["parent_child_pairs_in_log"] == 2
+    assert s4["child_before_parent"] == 2

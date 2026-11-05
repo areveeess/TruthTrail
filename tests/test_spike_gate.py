@@ -16,13 +16,21 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 GATE_PATH = REPO_ROOT / "scripts" / "check_spike_ratified.py"
 REAL_SPIKE = REPO_ROOT / ".planning" / "phases" / "03-real-propagation-data" / "03-SPIKE.md"
 
+CAPACITY = {
+    "TRACK_SAMPLE_PER_10K": 625,
+    "TRACK_MAX_ACTIVE_ROOTS": 2850,
+    "TRACK_ROOT_TTL_HOURS": 48,
+    "DB_BUDGET_BYTES": 300_000_000,
+}
 RECOMMENDED = {
     "RETENTION_TEXT_DAYS": 14,
     "RETENTION_CASCADE_DAYS": 90,
     "RETENTION_TOMBSTONE_DAYS": 7,
     "CASCADE_MERGE_POLICY": "claim_group",
     "TRACK_SEED_CLAIM_URL_MATCH": False,
+    **CAPACITY,
 }
+FULL_QUOTE = "ratify recommended via_uri=true dependencies=approved pseudonym=d17"
 
 
 @pytest.fixture(scope="module")
@@ -42,7 +50,7 @@ def make_doc(**overrides) -> str:
         "ratified_by": "owner",
         "ratified_on": "2026-10-20",
         "ratification_source": "owner-message",
-        "ratification_quote": json.dumps("ratify recommended pseudonym=d17"),
+        "ratification_quote": json.dumps(FULL_QUOTE),
         "od1_retention": "RT-2",
         "od2_merge": "M1",
         "od3_tracking": "A",
@@ -54,6 +62,8 @@ def make_doc(**overrides) -> str:
         "recommended_options": json.dumps({"od1": "RT-2", "od2": "M1", "od3": "A"}),
         "ratified_parameters": "{}",
         "run_windows": "[]",
+        "eligible_roots_per_day": "15199",
+        "bytes_per_root": "1426",
     }
     fields.update(dict(overrides.items()))
     lines = (
@@ -165,9 +175,10 @@ def test_owner_message_without_the_d17_token_exits_1(gate, tmp_path, capsys):
 @pytest.mark.parametrize(
     "quote",
     [
-        "ratify recommended pseudonym=d17",
-        "ratify OD-1=RT-1 pseudonym = D17 thanks",
-        "ok, and pseudonym_scheme=d17-hmac-v1",
+        "ratify recommended via_uri=true dependencies=approved pseudonym=d17",
+        "ratify OD-1=RT-2 via_uri = TRUE dependencies=approved pseudonym = D17 thanks",
+        "ratify recommended via_uri=true dependencies=approved / pseudonym=d17",
+        "ok via_uri=true, dependencies=approved, and pseudonym_scheme=d17-hmac-v1",
     ],
 )
 def test_the_explicit_token_confirms_the_scheme(gate, tmp_path, capsys, quote):
@@ -195,7 +206,7 @@ def test_blank_pseudonym_scheme_exits_1_even_when_everything_else_is_valid(gate,
 def test_choices_outside_the_plans_exit_3(gate, tmp_path, capsys, override):
     code, _out, err = run(gate, tmp_path, make_doc(**override), capsys)
     assert code == 3
-    assert "revise plans 03-04 to 03-07" in err
+    assert "revise plans 03-03 to 03-07, plus 03-02 (OD-3 C) and 03-10 (docs)" in err
 
 
 def test_recommended_defaults_resolving_to_m2_exit_3(gate, tmp_path, capsys):
@@ -299,9 +310,10 @@ def test_consistent_overrides_win_over_option_defaults(gate, tmp_path, capsys):
 
 
 def test_unrelated_numeric_overrides_are_merged(gate, tmp_path, capsys):
-    text = make_doc(ratified_parameters=json.dumps({"TRACK_SAMPLE_PER_10K": 1250}))
-    _code, payload, _err = run_json(gate, tmp_path, text, capsys)
-    assert payload["effective_parameters"]["TRACK_SAMPLE_PER_10K"] == 1250
+    text = make_doc(ratified_parameters=json.dumps({"TRACK_SAMPLE_PER_10K": 312}))
+    code, payload, _err = run_json(gate, tmp_path, text, capsys)
+    assert code == 0
+    assert payload["effective_parameters"]["TRACK_SAMPLE_PER_10K"] == 312
     assert payload["effective_parameters"]["RETENTION_TOMBSTONE_DAYS"] == 7
 
 
@@ -382,7 +394,7 @@ def test_bad_parameter_types_exit_2(gate, tmp_path, capsys):
 
 
 def test_the_four_od_bound_keys_are_always_present_on_exit_0(gate, tmp_path, capsys):
-    minimal = {"RETENTION_TEXT_DAYS": 14, "RETENTION_CASCADE_DAYS": 90}
+    minimal = {"RETENTION_TEXT_DAYS": 14, "RETENTION_CASCADE_DAYS": 90, **CAPACITY}
     text = make_doc(recommended_parameters=json.dumps(minimal))
     code, payload, _err = run_json(gate, tmp_path, text, capsys)
     assert code == 0
@@ -420,3 +432,164 @@ def test_no_agent_ratifiable_path_the_script_never_writes(gate):
     source = GATE_PATH.read_text(encoding="utf-8")
     assert "write_text" not in source
     assert "open(" not in source
+
+
+# ------------------------------------------------------------ owner tokens: via_uri, dependencies
+
+
+@pytest.mark.parametrize(
+    ("quote", "missing"),
+    [
+        ("ratify recommended via_uri=true pseudonym=d17", "dependencies=approved"),
+        ("ratify recommended dependencies=approved pseudonym=d17", "via_uri=true"),
+        ("ratify recommended via_uri=false dependencies=approved pseudonym=d17", "via_uri=true"),
+    ],
+)
+def test_owner_message_needs_explicit_via_uri_and_dependencies_tokens(
+    gate, tmp_path, capsys, quote, missing
+):
+    code, _out, err = run(gate, tmp_path, make_doc(ratification_quote=json.dumps(quote)), capsys)
+    assert code == 1
+    assert missing in err
+
+
+def test_via_uri_false_needs_the_false_token(gate, tmp_path, capsys):
+    quote = json.dumps("ratify recommended via_uri=false dependencies=approved pseudonym=d17")
+    assert (
+        run(gate, tmp_path, make_doc(schema_via_uri="false", ratification_quote=quote), capsys)[0]
+        == 0
+    )
+    code, _out, err = run(gate, tmp_path, make_doc(schema_via_uri="false"), capsys)
+    assert code == 1
+    assert "via_uri=false" in err
+
+
+# ------------------------------------------------------------ ratified parameter validation
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"TRACK_SAMPLE_PER_10K_TYPO": 312},
+        {"TRACK_SAMPLE_PER_10K": "312"},
+        {"TRACK_SAMPLE_PER_10K": True},
+        {"TRACK_SAMPLE_PER_10K": 312.0},
+        {"TRACK_SEED_CLAIM_URL_MATCH": 0},
+        {"TRACK_SAMPLE_PER_10K": 0},
+        {"TRACK_SAMPLE_PER_10K": 20000},
+        {"RETENTION_CASCADE_DAYS": 0},
+        {"RETENTION_TOMBSTONE_DAYS": -1},
+    ],
+)
+def test_unknown_mistyped_or_out_of_range_overrides_exit_2(gate, tmp_path, capsys, override):
+    text = make_doc(ratified_parameters=json.dumps(override))
+    assert run(gate, tmp_path, text, capsys)[0] == 2
+
+
+# ------------------------------------------------------------ storage coupling
+
+
+def test_recommended_values_pass_the_coupling_with_the_measured_figures(gate, tmp_path, capsys):
+    code, payload, err = run_json(gate, tmp_path, make_doc(), capsys)
+    assert code == 0
+    cap = payload["capacity"]
+    assert cap["required_max_active_roots"] == 2850
+    assert cap["budget_share"] == pytest.approx(0.4064, abs=1e-3)
+    assert cap["warnings"] == []
+    assert "warning" not in err
+
+
+def test_sampling_1250_at_90_days_breaks_the_80_percent_stop(gate, tmp_path, capsys):
+    override = {"TRACK_SAMPLE_PER_10K": 1250, "TRACK_MAX_ACTIVE_ROOTS": 5700}
+    code, _out, err = run(
+        gate, tmp_path, make_doc(ratified_parameters=json.dumps(override)), capsys
+    )
+    assert code == 2
+    assert "storage coupling" in err
+    assert "80%" in err
+
+
+def test_a_cap_below_the_sampled_active_set_exits_2(gate, tmp_path, capsys):
+    text = make_doc(ratified_parameters=json.dumps({"TRACK_MAX_ACTIVE_ROOTS": 2849}))
+    code, _out, err = run(gate, tmp_path, text, capsys)
+    assert code == 2
+    assert "required 2850" in err
+
+
+def test_the_coupled_rt1_pair_fits(gate, tmp_path, capsys):
+    override = {"TRACK_SAMPLE_PER_10K": 2500, "TRACK_MAX_ACTIVE_ROOTS": 11400}
+    text = make_doc(od1_retention="RT-1", ratified_parameters=json.dumps(override))
+    code, payload, _err = run_json(gate, tmp_path, text, capsys)
+    assert code == 0
+    assert payload["capacity"]["steady_state_bytes"] == pytest.approx(162.6e6, rel=1e-3)
+    assert payload["capacity"]["required_max_active_roots"] == 11400
+    override["TRACK_MAX_ACTIVE_ROOTS"] = 11399
+    text = make_doc(od1_retention="RT-1", ratified_parameters=json.dumps(override))
+    assert run(gate, tmp_path, text, capsys)[0] == 2
+
+
+def test_above_the_60_percent_line_warns_but_passes(gate, tmp_path, capsys):
+    override = {"TRACK_SAMPLE_PER_10K": 1000, "TRACK_MAX_ACTIVE_ROOTS": 4560}
+    code, _out, err = run(
+        gate, tmp_path, make_doc(ratified_parameters=json.dumps(override)), capsys
+    )
+    assert code == 0
+    assert "above the 60% design line" in err
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"eligible_roots_per_day": None},
+        {"bytes_per_root": None},
+        {"eligible_roots_per_day": "0"},
+        {"bytes_per_root": "1426.5"},
+    ],
+)
+def test_missing_or_invalid_measured_figures_exit_2(gate, tmp_path, capsys, fields):
+    assert run(gate, tmp_path, make_doc(**fields), capsys)[0] == 2
+
+
+def test_missing_capacity_parameter_exits_2(gate, tmp_path, capsys):
+    broken = {k: v for k, v in RECOMMENDED.items() if k != "DB_BUDGET_BYTES"}
+    code, _out, err = run(
+        gate, tmp_path, make_doc(recommended_parameters=json.dumps(broken)), capsys
+    )
+    assert code == 2
+    assert "DB_BUDGET_BYTES" in err
+
+
+# ------------------------------------------------------------ encoding and JSON robustness
+
+
+def test_a_utf8_bom_is_accepted(gate, tmp_path, capsys):
+    path = tmp_path / "spike.md"
+    path.write_bytes(b"\xef\xbb\xbf" + make_doc().encode("utf-8"))
+    assert gate.main(["--file", str(path)]) == 0
+    capsys.readouterr()
+
+
+def test_non_utf8_bytes_exit_2(gate, tmp_path, capsys):
+    path = tmp_path / "spike.md"
+    path.write_bytes(make_doc().encode("utf-8") + b"\xff\xfe")
+    assert gate.main(["--file", str(path)]) == 2
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {
+            "od1_retention": "recommended-defaults",
+            "recommended_options": '{"od1": ["RT-2"], "od2": "M1", "od3": "A"}',
+        },
+        {
+            "od3_tracking": "recommended-defaults",
+            "recommended_options": '{"od1": "RT-2", "od2": "M1", "od3": {"x": 1}}',
+        },
+        {"recommended_parameters": json.dumps(RECOMMENDED).replace("625", "NaN")},
+        {"ratified_parameters": '{"TRACK_SAMPLE_PER_10K": Infinity}'},
+    ],
+)
+def test_unhashable_or_invalid_json_values_exit_2(gate, tmp_path, capsys, fields):
+    assert run(gate, tmp_path, make_doc(**fields), capsys)[0] == 2

@@ -710,3 +710,70 @@ def test_storage_copy_rows_have_matching_column_counts(tool, tmp_path, monkeypat
         assert all(len(row.split("\t")) == width for row in rows)
     assert "MARKER" not in "".join(blocks.values()) or "x" in blocks["events"]
     assert "did:" not in "".join(blocks.values())
+
+
+def test_rescrub_fixture_applies_scrub2_once_and_then_is_a_fixed_point(tool, tmp_path):
+    """The CLI re-pass over a constructed scrub-1 fixture; the second run rewrites nothing."""
+    out_dir = tmp_path / "recorded"
+    out_dir.mkdir()
+    post = "app.bsky.feed.post"
+    msg = "network.bsky.jetstream.subscribeEvents#commit"
+
+    def frame(rkey, url, labels=None):
+        record = {
+            "$type": post,
+            "langs": ["en"],
+            "embed": {"$type": "app.bsky.embed.external", "external": {"uri": url}},
+        }
+        if labels:
+            record["labels"] = {"values": [{"val": v} for v in labels]}
+        return {
+            "$type": "message",
+            "payload": {
+                "$type": msg,
+                "collection": post,
+                "did": "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
+                "operation": "create",
+                "record": record,
+                "rkey": rkey,
+                "time": "2026-01-01T00:00:00Z",
+            },
+        }
+
+    rows = [
+        frame("2222222222222", "https://wire.test/story"),
+        frame("2222222222223", "https://bsky.app/profile/alice.example"),
+        frame("2222222222224", "https://alice.example/x", labels=["porn"]),
+    ]
+    main = out_dir / "bluesky-2026-01-01.jsonl"
+    samples = out_dir / "bluesky-2026-01-01.samples.jsonl"
+    main.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    samples.write_text("", encoding="utf-8")
+    manifest_path = out_dir / "bluesky-2026-01-01.manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "scrubber_version": "scrub-1",
+                "frames_dropped_by_scrubber": 0,
+                "selection_policy": {"allowlist_domains": ["wire.test"], "require_lang": "en"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    argv = ["rescrub-fixture", "--out", str(out_dir), "--date", "2026-01-01"]
+    assert tool.main(argv) == 0
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert data["scrubber_version"] == "scrub-2"
+    assert data["frames_dropped_by_scrubber"] == 1
+    assert data["coverage"]["tracked_roots"] == 1
+    assert data["rescrub"]["adult_labelled_negative_controls_before_drop"] == 1
+    body = main.read_text(encoding="utf-8")
+    assert "bsky.app" not in body
+    assert "alice" not in body
+    assert "https://nonlisted-1.invalid/" in body
+    before = (main.read_bytes(), manifest_path.read_bytes())
+    assert tool.main(argv) == 0
+    assert (main.read_bytes(), manifest_path.read_bytes()) == before
+    assert (
+        tool.main(["rescrub-fixture", "--out", str(tmp_path / "recorded"), "--date", "1999"]) == 2
+    )

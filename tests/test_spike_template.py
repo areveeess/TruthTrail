@@ -128,8 +128,12 @@ def test_ratification_block_lists_the_token_in_every_ratifying_reply():
     block = section(SPIKE.read_text(encoding="utf-8"), "Ratification block")
     replies = [line for line in block.splitlines() if line.startswith("- `ratify")]
     assert len(replies) == 2
-    assert all("pseudonym=d17" in line or "pseudonym=d17" in block for line in replies)
+    for line in replies:
+        assert "pseudonym=d17" in line
+        assert "dependencies=approved" in line
+        assert "via_uri=true" in line
     assert "does not confirm the one-way D-17 scheme" in block
+    assert "replies exactly `pseudonym=d17`" in block
 
 
 def test_the_finished_document_has_no_fill_in_marker_left():
