@@ -311,3 +311,13 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 ## Session handoff
 
 Start every new session by reading `.planning/HANDOFF.md` (what is done, standing owner constraints, how work is run, what Phase 2 needs). Then run `/gsd-next`.
+
+## UI/UX design tooling (owner instruction)
+
+Whenever you design or change UI/UX (the Phase 5 dashboard, any page, component, layout, copy-on-screen or visual style), use all three of these, and install any that is missing first:
+
+1. **Mobbin MCP**: search real-world screens, flows and website sections for references before designing (tools `mcp__Mobbin__search_screens`, `search_flows`, `search_sections`; load them with ToolSearch). If the Mobbin tools are not available in the session, the owner connects the Mobbin plugin/connector from the claude.ai plugin directory (publisher: Mobbin); say so instead of designing without references.
+2. **Impeccable** (Paul Bakaus, https://github.com/pbakaus/impeccable): design vocabulary, commands and anti-pattern checks. Check with `ls .claude/skills/impeccable ~/.claude/skills/impeccable`; if missing, install for this project with `npx impeccable install` (choose Claude Code, project scope) or in Claude Code `/plugin marketplace add pbakaus/impeccable` then install it from `/plugin`. Run `/impeccable init` once, and `npx impeccable detect src/` (or the web/ folder) before finishing UI work. Note: its Claude Code hook downloads an engine on the first edit; install it when UI work starts, not earlier.
+3. **Taste Skill** (Leonxlnx, https://github.com/Leonxlnx/taste-skill): art direction and browser checks so pages are not generic. Check for the `design-taste-frontend` skill; if missing, install with `npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"`.
+
+These are third-party packages: before installing, pin the version or commit actually installed and record it in the phase SUMMARY; never let them add secrets or tracking. Honesty rules still win over any style advice: "flag for human review" wording, synthetic data visibly labelled, risk shown as a calibrated band or abstain, never a bare verdict.

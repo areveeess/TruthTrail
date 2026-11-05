@@ -7,6 +7,8 @@ To continue: start a new session on this branch, then run `/gsd-next` (or `/gsd-
 
 ## Owner working preferences (latest)
 
+- UI/UX work must use the Mobbin MCP, Impeccable and Taste Skill (see the 'UI/UX design tooling' section of .claude/CLAUDE.md; install missing ones when UI work starts).
+
 - The owner first wanted to review each stage, then said "approve and don't ask for permissions at all... go on". Current mode: run end to end autonomously, report at phase boundaries, and stop only for things only the owner can do (live API checks with their key, running commands on their Windows machine, GitHub settings). Ultracode is on in the last sessions: use the Workflow tool for substantive work.
 - The owner runs native Windows PowerShell (Python 3.13, uv). Owner-side checks are done by giving them exact commands and recording their pasted results in the phase UAT file.
 - Container rate limits: agents can die on "session limit"; the Workflow resumes with `resumeFromRunId` and cached results (completed agents are not re-run).
@@ -31,8 +33,8 @@ Phases 3 and 4 both depend only on Phase 2 and may run in parallel. v2 "Showcase
 ## Standing owner constraints (still in force)
 
 - Work only on branch `claude/sleepy-lovelace-13aums`. **No pull requests** unless the owner explicitly asks. **No history rewrite, force-push or key purge** unless explicitly asked.
-- Push after each phase/plan (the container is ephemeral). Every commit message ends with exactly:
-  `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` and `Claude-Session: https://claude.ai/code/session_01RrbnqswEy1t46d655GHDjC`
+- Push after each phase/plan (the container is ephemeral). Every commit message ends with the attribution lines the harness currently specifies; as of 2026-11-05 that is exactly:
+  `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>` and `Claude-Session: https://claude.ai/code/session_01RrbnqswEy1t46d655GHDjC` (earlier commits carry `Claude Sonnet 5.5`).
 - Secrets only via environment variables. The old GNews key still exists in git history (commit `1fedcd2`); the owner confirmed it was changed and deleted at GNews. **Never print or reproduce any key.** Before every commit scan added lines for key material (32-hex with word boundaries; 40-char git SHAs are fine; derive the old key from `git show 9b5b085:gnews_fetcher.py` inside a script and print only counts). `tests/test_no_hardcoded_credentials.py` is the backstop (scans the repo incl. `.planning/` and `.claude/`).
 - Never call the real GNews API from the dev container (the test network guard enforces it in tests). The owner runs live checks on their own machine.
 - The owner delegated decisions ("take all the decisions urself on auto unless extremely necessary"). Plan mode has been re-imposed by the harness several times; when it is active, plan and call ExitPlanMode instead of editing.
