@@ -1,15 +1,21 @@
 """Pure selection functions: edges, URLs, allowlist, sampling and the seed decision (D-12, D-13).
 
-Standard library only and strict-typed: plan 03-04 moves this file unchanged into the package, so
-the yield measured by the spike is the yield that ships. No fetching, no resolving, no state.
+Standard library only and strict-typed: plan 03-04 moved this file unchanged into the package (git
+mv), so the yield measured by the spike is the yield that ships, and then extended it additively:
+``sample_bucket`` lets the normaliser compute the sampling bucket once and discard the raw URI,
+``load_allowlist`` reads the committed allowlist file, ``SeedCandidate`` and ``seed_decision_for``
+decide on a normalised root candidate (the production path holds no raw record or URI), and the
+optional OD-3 option B claim-URL match seeds a post whose canonical URL is a stored news headline
+URL. No fetching, no resolving, no state.
 """
 
 from __future__ import annotations
 
 import hashlib
 import re
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlsplit
 
@@ -53,6 +59,12 @@ _TRACKING_EXACT = frozenset({"fbclid", "gclid", "msclkid", "mc_cid", "mc_eid", "
 
 LINK_CARD = "card"
 LINK_FACET = "facet"
+
+ALLOWLIST_MAX_ENTRIES = 60
+SAMPLE_BUCKETS = 10000
+_ALLOWLIST_DOMAIN = re.compile(
+    r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+"
+)
 
 
 class AtUri(NamedTuple):
@@ -251,14 +263,44 @@ def is_shortener(host: str) -> bool:
 
 def sample_keep(raw_at_uri: str, per_10k: int) -> bool:
     """Deterministic hash sample over the RAW at-URI; independent of any secret (RESEARCH F-06)."""
-    digest = hashlib.sha256(raw_at_uri.encode("utf-8")).digest()
-    return int.from_bytes(digest[:8], "big") % 10000 < per_10k
+    return sample_bucket(raw_at_uri) < per_10k
 
 
 def sample_bucket(raw_at_uri: str) -> int:
-    """The 0..9999 bucket that ``sample_keep`` compares with its threshold."""
+    """The 0..9999 bucket that ``sample_keep`` compares with its threshold.
+
+    The first 8 bytes of sha256 of the raw at-URI, big-endian, modulo 10000. The normaliser
+    computes it once so the raw URI can be discarded (D-17).
+    """
     digest = hashlib.sha256(raw_at_uri.encode("utf-8")).digest()
-    return int.from_bytes(digest[:8], "big") % 10000
+    return int.from_bytes(digest[:8], "big") % SAMPLE_BUCKETS
+
+
+def load_allowlist(path: Path | str) -> frozenset[str]:
+    """Read ``domain  # category`` lines; blank and comment lines are ignored.
+
+    Nothing is normalised silently: an uppercase entry, a ``www.`` entry, a malformed domain, a
+    duplicate or more than ``ALLOWLIST_MAX_ENTRIES`` entries raise ``ValueError`` naming the line.
+    """
+    entries: list[str] = []
+    text = Path(path).read_text(encoding="utf-8")
+    for number, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        domain = stripped.partition("#")[0].strip()
+        if domain != domain.lower():
+            raise ValueError(f"allowlist line {number}: entries must be lowercase")
+        if domain.startswith("www."):
+            raise ValueError(f"allowlist line {number}: entries must not start with www.")
+        if _ALLOWLIST_DOMAIN.fullmatch(domain) is None:
+            raise ValueError(f"allowlist line {number}: not a registrable domain")
+        if domain in entries:
+            raise ValueError(f"allowlist line {number}: duplicate entry")
+        entries.append(domain)
+        if len(entries) > ALLOWLIST_MAX_ENTRIES:
+            raise ValueError(f"allowlist has more than {ALLOWLIST_MAX_ENTRIES} entries")
+    return frozenset(entries)
 
 
 def record_labels(record: object) -> list[str]:
@@ -283,25 +325,69 @@ def record_langs(record: object) -> list[str]:
     return [x for x in langs if isinstance(x, str)] if isinstance(langs, list) else []
 
 
-def seed_decision(
-    record: object,
-    raw_at_uri: str,
+@dataclass(frozen=True, slots=True)
+class SeedCandidate:
+    """What the seed decision reads from one post: no raw URI, DID or text (D-17).
+
+    ``canonical_urls`` keeps the order of ``link_urls`` (card first, then facets) with the
+    unparseable ones removed, so the first allowlisted URL is the same one the spike chose.
+    """
+
+    top_level: bool
+    canonical_urls: tuple[str, ...]
+    langs: tuple[str, ...]
+    labels: frozenset[str]
+    sample_bucket: int
+
+
+def seed_candidate(
+    record: object, raw_at_uri: str | None, *, bucket: int | None = None
+) -> SeedCandidate:
+    """Build the ``SeedCandidate`` of a post record; ``bucket`` replaces the raw URI when given."""
+    if bucket is None:
+        if raw_at_uri is None:
+            raise ValueError("a raw at-URI or a sample bucket is required")
+        bucket = sample_bucket(raw_at_uri)
+    edge = derive_edge(POST_COLLECTION, record)
+    canonical = tuple(
+        c for _src, raw in link_urls(record) if (c := canonicalise_url(raw)) is not None
+    )
+    return SeedCandidate(
+        top_level=edge is not None and edge.kind == "root",
+        canonical_urls=canonical,
+        langs=tuple(record_langs(record)),
+        labels=frozenset(record_labels(record)),
+        sample_bucket=bucket,
+    )
+
+
+def seed_decision_for(
+    candidate: SeedCandidate,
     allowlist: Collection[str],
     *,
     require_lang: str = "en",
     sample_per_10k: int = 10000,
     require_top_level: bool = True,
+    known_claim_urls: Collection[str] | None = None,
+    seed_claim_url_match: bool = False,
 ) -> SeedDecision:
-    """Decide whether a post record seeds a tracked root; the reason string is stable (D-13)."""
-    edge = derive_edge(POST_COLLECTION, record)
-    if require_top_level and (edge is None or edge.kind != "root"):
+    """Decide whether a candidate seeds a tracked root; the reason string is stable (D-13).
+
+    OD-3 option B: only when ``seed_claim_url_match`` is true, a canonical URL that is in
+    ``known_claim_urls`` (the stored news headline URLs, supplied by the caller) makes a post
+    eligible even when its host is not allowlisted; the reason is then ``claim_url_match`` and
+    every other rule (top level only, shorteners never seed, language, labels, sampling) still
+    applies. An allowlisted URL wins over a claim match.
+    """
+    if require_top_level and not candidate.top_level:
         return SeedDecision(False, "not_top_level")
-    canonical = [c for _src, raw in link_urls(record) if (c := canonicalise_url(raw)) is not None]
-    if not canonical:
+    if not candidate.canonical_urls:
         return SeedDecision(False, "no_link")
+    claim_set = known_claim_urls if seed_claim_url_match and known_claim_urls else None
     chosen: tuple[str, str] | None = None
+    claim_match: tuple[str, str] | None = None
     saw_shortener = False
-    for url in canonical:
+    for url in candidate.canonical_urls:
         host = url_host(url)
         if is_shortener(host):
             saw_shortener = True
@@ -309,16 +395,64 @@ def seed_decision(
         domain = match_domain(host, allowlist)
         if domain is not None and chosen is None:
             chosen = (domain, url)
+        if claim_set is not None and claim_match is None and url in claim_set:
+            claim_match = (host, url)
+    eligible_reason = "eligible"
+    if chosen is None and claim_match is not None:
+        chosen, eligible_reason = claim_match, "claim_url_match"
     if chosen is None:
         return SeedDecision(False, "shortener" if saw_shortener else "not_allowlisted")
     domain, claim_url = chosen
-    if require_lang and require_lang not in record_langs(record):
+    if require_lang and require_lang not in candidate.langs:
         return SeedDecision(False, "lang", domain, claim_url)
-    labels = record_labels(record)
-    if any(label in ADULT_LABELS for label in labels):
+    if any(label in ADULT_LABELS for label in candidate.labels):
         return SeedDecision(False, "adult_label", domain, claim_url)
-    if NO_UNAUTHENTICATED_LABEL in labels:
+    if NO_UNAUTHENTICATED_LABEL in candidate.labels:
         return SeedDecision(False, "no_unauthenticated_label", domain, claim_url)
-    if not sample_keep(raw_at_uri, sample_per_10k):
+    if candidate.sample_bucket >= sample_per_10k:
         return SeedDecision(False, "sampled_out", domain, claim_url)
-    return SeedDecision(True, "eligible", domain, claim_url)
+    return SeedDecision(True, eligible_reason, domain, claim_url)
+
+
+def seed_decision(
+    record: object,
+    raw_at_uri: str | None,
+    allowlist: Collection[str],
+    *,
+    require_lang: str = "en",
+    sample_per_10k: int = 10000,
+    require_top_level: bool = True,
+    sample_bucket: int | None = None,
+    known_claim_urls: Collection[str] | None = None,
+    seed_claim_url_match: bool = False,
+) -> SeedDecision:
+    """Decide whether a post record seeds a tracked root; the reason string is stable (D-13).
+
+    ``sample_bucket``, when given, is used instead of hashing ``raw_at_uri`` (the production
+    path never holds a raw URI after normalisation). Option B arguments: see
+    ``seed_decision_for``, which this function delegates to.
+    """
+    candidate = seed_candidate(record, raw_at_uri, bucket=sample_bucket)
+    return seed_decision_for(
+        candidate,
+        allowlist,
+        require_lang=require_lang,
+        sample_per_10k=sample_per_10k,
+        require_top_level=require_top_level,
+        known_claim_urls=known_claim_urls,
+        seed_claim_url_match=seed_claim_url_match,
+    )
+
+
+SEED_REASONS: Sequence[str] = (
+    "eligible",
+    "claim_url_match",
+    "not_top_level",
+    "no_link",
+    "shortener",
+    "not_allowlisted",
+    "lang",
+    "adult_label",
+    "no_unauthenticated_label",
+    "sampled_out",
+)
