@@ -3,12 +3,12 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 3
 current_phase_name: Real Propagation Data
-current_plan: 03-01 tasks 1-4 done; task 5 owner checkpoint pending
-status: awaiting_owner_ratification
-stopped_at: Plan 03-01 stopped at the Task 5 blocking owner checkpoint; 03-SPIKE.md is unratified (gate script exits 1); plans 03-02 to 03-12 must not start
-last_updated: "2026-10-19T14:20:00.000Z"
-last_activity: 2026-10-19
-last_activity_desc: Source spike run (7259.5 s measured on the live Jetstream), 03-SPIKE.md and the real fixture committed; owner ratification pending
+current_plan: 03-02 (next); 03-01 complete, ratified by the owner 2026-11-06
+status: executing
+stopped_at: Plan 03-01 complete; 03-SPIKE.md ratified by owner message (RT-2, M1, A, via_uri true, dependencies approved, pseudonym d17-hmac-v1); gate exits 0; next plan 03-02
+last_updated: "2026-11-06T00:00:00.000Z"
+last_activity: 2026-11-06
+last_activity_desc: Owner ratified the source spike (2026-11-06); verification fix round landed (scrub-2 fixture, analyzer fix, hardened gate)
 state_head: 7ce8bf637af0a3a203fe2210861a8f43eb77a906
 progress:
   total_phases: 6
@@ -31,9 +31,9 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 3 — Real Propagation Data
-Current Plan: 03-01 (tasks 1-4 complete; Task 5 owner checkpoint pending)
+Current Plan: 03-02 (03-01 complete)
 Total Plans in Phase: 12
-Status: Awaiting owner ratification of 03-SPIKE.md (D-02 gate)
+Status: 03-01 ratified; executing 03-02 next
 Last activity: 2026-10-19 — spike run, decision document and fixture committed
 
 Progress: [███░░░░░░░] 33%

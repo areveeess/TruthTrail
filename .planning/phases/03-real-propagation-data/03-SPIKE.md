@@ -1,17 +1,17 @@
 ---
 phase: 3
 document: source spike decision
-ratified: false
-ratified_by: ""
-ratified_on: ""
-ratification_source: ""
-ratification_quote: ""
-od1_retention: ""
-od2_merge: ""
-od3_tracking: ""
-schema_via_uri: ""
-dependencies_approved: ""
-pseudonym_scheme: ""
+ratified: true
+ratified_by: owner
+ratified_on: 2026-11-06
+ratification_source: owner-message
+ratification_quote: "ratify OD-1=RT-2 OD-2=M1 OD-3=A via_uri=true dependencies=approved pseudonym=d17"
+od1_retention: RT-2
+od2_merge: M1
+od3_tracking: A
+schema_via_uri: true
+dependencies_approved: true
+pseudonym_scheme: d17-hmac-v1
 windows_result: pending
 eligible_roots_per_day: 15199
 bytes_per_root: 1426
