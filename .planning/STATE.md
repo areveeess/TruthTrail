@@ -130,7 +130,7 @@ None yet.
 - [Phase 3]: Owner decisions needed on retention policy for stored text and on merging cascades when a provisional root resolves later
 - [Phase 3]: The fate of the legacy query-driven `/analyze` (retire or serve stored news context) must be settled to satisfy DATA-06
 - [Phase 6]: Render RAM and cold start, and Neon pooler behaviour with psycopg, are untested; GitHub Actions scheduled jobs are disabled after 60 days of repo inactivity
-- [Phase 3]: pip-audit fails on certifi 2026.7.22 (PYSEC-2026-4320, pre-existing transitive pin); bump certifi in a quick task (see 03 deferred-items.md)
+- [Phase 3]: RESOLVED 2026-11-06: certifi bumped 2026.7.22 -> 2026.10.23 (PYSEC-2026-4320); pip-audit clean
 
 ## Deferred Items
 
