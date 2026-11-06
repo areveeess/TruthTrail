@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 3
 current_phase_name: Real Propagation Data
-current_plan: 03-04 (next); 03-01 to 03-03 complete
+current_plan: 03-05 (next); 03-01 to 03-04 complete
 status: executing
-stopped_at: Completed 03-03-PLAN.md
-last_updated: "2026-11-06T09:32:31.992Z"
+stopped_at: Completed 03-04-PLAN.md
+last_updated: "2026-11-06T10:07:05.453Z"
 last_activity: 2026-11-06
-last_activity_desc: Plan 03-03 executed (D-20 schema and packaged Alembic baseline, /ready database check, CI PostgreSQL 17 service and Alembic round trip)
-state_head: 5afa686f10a32939b258ab7fb191a3002210ed18
+last_activity_desc: Plan 03-04 executed (keyed pseudonymiser, Jetstream dialect, normaliser with D-12 edges, selection moved into the package, ReplaySource, import rules)
+state_head: 31b3b29f61cf673c2f69aacc59ce2d9b01e59539
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 21
+  completed_plans: 22
 milestone_name: Lean MVP
 ---
 
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 3 — Real Propagation Data
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 12
-Status: 03-01 to 03-03 complete; executing 03-04 next
-Last activity: 2026-11-06 — plan 03-03 executed (schema, migrations, database readiness, CI Postgres)
+Status: 03-01 to 03-04 complete; executing 03-05 next
+Last activity: 2026-11-06 — plan 03-04 executed (ingest layer: pseudonymiser, dialect, normaliser, selection, replay source)
 
 Progress: [███░░░░░░░] 33%
 
@@ -80,6 +80,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02 P12 | 25min | 3 tasks | 7 files |
 | Phase 03 P02 | 22min | 3 tasks | 22 files |
 | Phase 03 P03 | 34min | 3 tasks | 22 files |
+| Phase 03 P04 | 27min | 4 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,11 @@ Recent decisions affecting current work:
 - [Phase 3]: 03-03: Migrations ship in src/truthtrail/db/migrations (baseline 0001); the URL never reaches the ini or set_main_option; python -m truthtrail.db migrate|check|heads exits 0/1/3/5 with no URL in output
 - [Phase 3]: 03-03: /ready registers database for an injected engine or DATABASE_URL without DEMO_MODE; the check reads app.state.engine lazily and fails closed; the lifespan owns and disposes only the engine it builds
 - [Phase 3]: 03-03: CI tests job uses postgres:17.11-bookworm@sha256:665dc7b3... (re-resolved; tag moved since planning), REQUIRE_DB=1, REQUIRE_DB_FLOOR=65 and the four-step Alembic CLI round trip
+- [Phase 03]: 03-04: A quote of a non-post target is a root candidate (derive_edge, the function that measured the ratified yield), not Dropped(bad_edge); a repost of a non-post target and a reply with both references unusable are bad_edge
+- [Phase 03]: 03-04: Production seed path is seed_decision_for(NormalizedEvent.seed_candidate()); seed_decision(record, ...) keeps its signature and delegates, so both paths are one implementation (plan 03-05 Decider uses the candidate path)
+- [Phase 03]: 03-04: Sources never yield Dropped results; drops go to the caller's DropCounter by reason
+- [Phase 03]: 03-04: The recorded fixture now ships in the image (.dockerignore line removed) because ReplaySource is runtime code that reads it; ReplaySource hashes the data once and iterates those bytes
+- [Phase 03]: 03-04: find_order_violations leaves out events on a parent cycle; the Keyer holds the HMAC key schedule, not the raw secret; FAKE_PSEUDONYM_SECRET is runtime-generated per session
 
 ### Pending Todos
 
@@ -147,8 +153,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T09:32:31.854Z
-Stopped at: Completed 03-03-PLAN.md
+Last session: 2026-11-06T10:07:05.350Z
+Stopped at: Completed 03-04-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).

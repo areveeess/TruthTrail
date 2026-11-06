@@ -16,6 +16,11 @@
     {
       "number": "3",
       "name": "Real Propagation Data",
+      "status": "in_progress"
+    },
+    {
+      "number": "3.1",
+      "name": "Reddit as a Second Source (INSERTED)",
       "status": "pending"
     },
     {
@@ -36,8 +41,8 @@
   ],
   "next": {
     "command": "/gsd:progress --next",
-    "label": "Advance to the next step (plan phase 3)",
-    "reason": "Phase 3 of 6 — needs a plan"
+    "label": "Advance to the next step",
+    "reason": "Phase 3 of 7 · executing"
   },
-  "updated_at": "2026-10-18T12:36:49.981Z"
+  "updated_at": "2026-11-06T10:06:56.708Z"
 }
