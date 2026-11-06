@@ -1,0 +1,5 @@
+# Phase 3 deferred items (out of scope for the plan that found them)
+
+| Found in | Item | Why deferred | Suggested fix |
+|---|---|---|---|
+| 03-02 Task 1 (2026-11-06) | pip-audit reports PYSEC-2026-4320 (alias GHSA-6q48-6c7w-9gw2, published 2026-10-20) for `certifi` 2026.7.22, a transitive dependency of `requests` already in `uv.lock` before this plan: the bundle still trusts the `emSign ECC Root CA - G3` root, under which eight revoked intermediates had compromised keys. Fixed in certifi 2026.10.18. The CI `audit` job fails on this advisory at HEAD before plan 03-02 too. | Plan 03-02 may not change an existing pin (its verify command asserts it). The advisory is real for this service: `requests` uses the certifi bundle for the GNews calls. It was NOT silenced: no `--ignore-vuln` was added to CI or to any file. | A separate quick task: `uv lock --upgrade-package certifi` with uv 0.13.1 (check that only certifi changes and that uv 0.11.32 accepts the lock), then re-run the pip-audit pair. |

@@ -3,19 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 3
 current_phase_name: Real Propagation Data
-current_plan: 03-02 (next); 03-01 complete, ratified by the owner 2026-11-06
+current_plan: 03-03 (next); 03-01 and 03-02 complete
 status: executing
-stopped_at: Plan 03-01 complete; 03-SPIKE.md ratified by owner message (RT-2, M1, A, via_uri true, dependencies approved, pseudonym d17-hmac-v1); gate exits 0; next plan 03-02
-last_updated: "2026-11-06T00:00:00.000Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-11-06T08:51:59.413Z"
 last_activity: 2026-11-06
-last_activity_desc: Owner ratified the source spike (2026-11-06); verification fix round landed (scrub-2 fixture, analyzer fix, hardened gate)
-state_head: 7ce8bf637af0a3a203fe2210861a8f43eb77a906
+last_activity_desc: Plan 03-02 executed (sqlalchemy/psycopg/alembic/websockets pins, core/policy.py, db/ engine factory, real-PostgreSQL fixtures)
+state_head: 01f4b6edeff3c315a6f387c770ec1128610c9b36
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 2
-  total_plans: 18
-  completed_plans: 18
-  percent: 33
+  total_plans: 30
+  completed_plans: 20
 milestone_name: Lean MVP
 ---
 
@@ -31,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 3 — Real Propagation Data
-Current Plan: 03-02 (03-01 complete)
+Current Plan: 03-03 (03-01 and 03-02 complete)
 Total Plans in Phase: 12
-Status: 03-01 ratified; executing 03-02 next
-Last activity: 2026-10-19 — spike run, decision document and fixture committed
+Status: 03-02 complete; executing 03-03 next
+Last activity: 2026-11-06 — plan 03-02 executed (database foundation)
 
 Progress: [███░░░░░░░] 33%
 
@@ -79,6 +78,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02 P10 | 20min | 2 tasks | 6 files |
 | Phase 02 P11 | 15min | 2 tasks | 4 files |
 | Phase 02 P12 | 25min | 3 tasks | 7 files |
+| Phase 03 P02 | 22min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -115,6 +115,10 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-10: cascade invariants are pure stdlib functions in core/cascade.py (order_events key observed_at, depth, event_id; validate_cascade rejects duplicates, naive datetimes, cycles, parent later than child, tolerates orphans); load_demo_fixture validates every result and the lifespan loads the fixture in demo mode, but the served body is never reordered (D-19); Hypothesis ci/dev profiles; ENG-03 complete
 - [Phase 02]: 02-11: Dockerfile is multi-stage with python:3.13-slim and uv 0.13.1 pinned by tag and digest (re-verified against the registries), uid 10001, urllib HEALTHCHECK, CMD with --no-proxy-headers; properties enforced by tests/test_container_files.py; scripts/smoke_app.py proves a non-editable no-dev install serves health, ready and demo analyze; docker build unverified (no daemon), ENG-05 stays Pending until plan 02-12
 - [Phase 02]: 02-12: coverage gate fail_under = 96 (measured 98.342 minus 2, not in addopts); ci.yml now has seven jobs (lint, typecheck, audit, docker added; gitleaks untouched); README rewritten for the packaged service; local phase gate green and 02-VALIDATION flipped to validated; ENG-04 and ENG-05 stay Pending and ROADMAP criteria 2 and 4 stay pending human confirmation (no Actions run, no docker daemon)
+- [Phase 03]: 03-02: Policy defaults are literals in core/policy.py proven equal to the ratified 03-SPIKE.md by tests that read the gate's effective_parameters; TRACK_ALLOWLIST_FILE compared package-relative (ratified value is repo-relative)
+- [Phase 03]: 03-02: psycopg[binary] 3.3.6 without the pool extra (F-12), a documented deviation from D-19; eight packages added to uv.lock, none changed
+- [Phase 03]: 03-02: Database tests use @pytest.mark.requires_db against a real PostgreSQL (TEST_DATABASE_URL, else a non-root throwaway cluster via runuser); a database fixture without the marker is a usage error; REQUIRE_DB_FLOOR fails runs below the floor
+- [Phase 03]: 03-02: create_db_engine is the only engine builder (pool 5+5, pool_timeout 2 s, connect 3 s, statement 5 s api / 30 s collector and jobs, lock 2 s, SET TIME ZONE UTC on connect); URL options are kept
 
 ### Pending Todos
 
@@ -126,6 +130,7 @@ None yet.
 - [Phase 3]: Owner decisions needed on retention policy for stored text and on merging cascades when a provisional root resolves later
 - [Phase 3]: The fate of the legacy query-driven `/analyze` (retire or serve stored news context) must be settled to satisfy DATA-06
 - [Phase 6]: Render RAM and cold start, and Neon pooler behaviour with psycopg, are untested; GitHub Actions scheduled jobs are disabled after 60 days of repo inactivity
+- [Phase 3]: pip-audit fails on certifi 2026.7.22 (PYSEC-2026-4320, pre-existing transitive pin); bump certifi in a quick task (see 03 deferred-items.md)
 
 ## Deferred Items
 
@@ -137,8 +142,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-18T06:51:38.196Z
-Stopped at: Phase 2 complete, ready to plan Phase 3
+Last session: 2026-11-06T08:51:59.310Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
