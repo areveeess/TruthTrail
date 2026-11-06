@@ -7,7 +7,7 @@ To continue: start a new session on this branch, then run `/gsd-next` (or `/gsd-
 
 ## Owner working preferences (latest)
 
-- UI/UX work must use the Mobbin MCP, Impeccable and Taste Skill (see the 'UI/UX design tooling' section of .claude/CLAUDE.md; install missing ones when UI work starts).
+- UI/UX work must use the Mobbin MCP, Impeccable, Taste Skill, UIMax MCP and the Claude Design plugin (see the 'UI/UX design tooling' section of .claude/CLAUDE.md; install missing ones, version-pinned, when UI work starts; the /plugin commands are run by the owner).
 
 - The owner first wanted to review each stage, then said "approve and don't ask for permissions at all... go on". Current mode: run end to end autonomously, report at phase boundaries, and stop only for things only the owner can do (live API checks with their key, running commands on their Windows machine, GitHub settings). Ultracode is on in the last sessions: use the Workflow tool for substantive work.
 - The owner runs native Windows PowerShell (Python 3.13, uv). Owner-side checks are done by giving them exact commands and recording their pasted results in the phase UAT file.
