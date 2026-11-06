@@ -133,9 +133,12 @@ def test_no_module_level_engine_and_one_factory() -> None:
             if isinstance(node, ast.Call):
                 func = node.func
                 name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", "")
-                if name in {"create_engine", "create_db_engine", "engine_from_config"}:
+                # Raw engine construction only inside the factory. Calling the factory itself
+                # from a function (a lifespan, a command) is the intended use; calling it at
+                # module level is caught by the loop below.
+                if name in {"create_engine", "engine_from_config"}:
                     relative = path.relative_to(package).as_posix()
-                    if not (relative == "db/engine.py" and name == "create_engine"):
+                    if relative != "db/engine.py":
                         offenders.append(f"{relative}:{node.lineno}")
         for statement in tree.body:  # module level
             if isinstance(statement, ast.Assign | ast.AnnAssign) and isinstance(

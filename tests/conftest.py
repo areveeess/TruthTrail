@@ -78,7 +78,9 @@ SETTINGS_CLASSES = (Settings, BootSettings, Policy, DatabaseSettings, IngestSett
 # test-only database variables are read (provisioning and the REQUIRE_DB_FLOOR check).
 SESSION_ENVIRON = dict(os.environ)
 # Fixtures that need a real PostgreSQL; a test that uses one must carry the requires_db marker.
-DB_FIXTURES = frozenset({"pg_provisioning", "pg_admin_url", "db_url", "empty_database"})
+DB_FIXTURES = frozenset(
+    {"pg_provisioning", "pg_admin_url", "db_url", "empty_database", "migrated_db_url", "clean_db"}
+)
 
 
 @pytest.fixture(autouse=True)
@@ -426,6 +428,69 @@ def empty_database(pg_admin_url: str) -> Iterator[EmptyDatabases]:
         yield factory
     finally:
         factory.close()
+
+
+def upgrade_to_head(url: str) -> None:
+    """Apply the packaged migrations to ``url`` through one shared connection (Pattern 8)."""
+    from alembic import command
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import NullPool
+
+    from truthtrail.db import migration_config
+
+    engine = create_engine(url, poolclass=NullPool)
+    try:
+        with engine.begin() as connection:
+            command.upgrade(migration_config(connection), "head")
+    finally:
+        engine.dispose()
+
+
+@pytest.fixture(scope="session")
+def migrated_db_url(pg_admin_url: str) -> Iterator[str]:
+    """URL of a ``truthtrail_test_{random}`` database at the packaged head, shared by the
+    session and dropped at its end. Tests that write rows use ``clean_db`` as well."""
+    admin = _admin_engine(pg_admin_url)
+    name = None
+    try:
+        name, url = _create_test_database(admin, pg_admin_url)
+        upgrade_to_head(url)
+        yield url
+    finally:
+        if name is not None:
+            _drop_test_database(admin, name)
+        admin.dispose()
+
+
+# Every application table of the baseline revision (D-20); TRUNCATE order does not matter
+# with CASCADE, the list is fixed so a new table is added here deliberately.
+APPLICATION_TABLES = (
+    "news_queries",
+    "accounts",
+    "claims",
+    "cascades",
+    "events",
+    "ingest_checkpoints",
+    "ingest_runs",
+    "news_fetches",
+)
+
+
+@pytest.fixture
+def clean_db(migrated_db_url: str) -> str:
+    """The migrated database with every application table emptied and identities reset."""
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.pool import NullPool
+
+    engine = create_engine(migrated_db_url, poolclass=NullPool)
+    try:
+        with engine.begin() as connection:
+            connection.execute(
+                text("TRUNCATE " + ", ".join(APPLICATION_TABLES) + " RESTART IDENTITY CASCADE")
+            )
+    finally:
+        engine.dispose()
+    return migrated_db_url
 
 
 @pytest.fixture
