@@ -15,18 +15,22 @@ No provisioning means one session-level exit naming the remedies, never a silent
 ``REQUIRE_DB_FLOOR`` fails a run in which fewer database tests executed than the floor.
 """
 
+import base64
 import ipaddress
+import json
 import os
 import random
 import secrets
 import socket
 from collections.abc import Callable, Iterator, Mapping
+from pathlib import Path
 from typing import Any
 
 import pytest
 import responses
 from hypothesis import HealthCheck, settings
 
+import truthtrail
 from truthtrail.core.boot import BootSettings
 from truthtrail.core.config import DatabaseSettings, IngestSettings, Settings, get_settings
 from truthtrail.core.policy import Policy
@@ -235,6 +239,96 @@ def seeded_random() -> Iterator[Callable[[int], None]]:
 
     yield seed
     random.setstate(state)
+
+
+# --- Recorded real-data fixture (D-04) and the pseudonymiser (D-17) ------------------------
+# Located from the installed package, never from the working directory (Phase 2 D-22).
+RECORDED_DIR = Path(truthtrail.__file__).resolve().parent / "data" / "recorded"
+FIXTURE_DATE = "2026-10-19"
+FIXTURE_MAIN = RECORDED_DIR / f"bluesky-{FIXTURE_DATE}.jsonl"
+FIXTURE_SAMPLES = RECORDED_DIR / f"bluesky-{FIXTURE_DATE}.samples.jsonl"
+FIXTURE_MANIFEST = RECORDED_DIR / f"bluesky-{FIXTURE_DATE}.manifest.json"
+# Clearly fake test secret for the keyed pseudonymiser: 32 random bytes generated per session
+# (never a literal), base64url text exactly as an operator would set PSEUDONYM_SECRET.
+FAKE_PSEUDONYM_SECRET = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii")
+
+
+def fixture_manifest() -> dict[str, Any]:
+    """The parsed manifest. A contract key that is absent raises KeyError naming it, so a count
+    is read by its exact key and never improvised."""
+    data: dict[str, Any] = json.loads(FIXTURE_MANIFEST.read_text(encoding="utf-8"))
+    return data
+
+
+def recorded_lines() -> Iterator[str]:
+    """Every line of the main replay file, in file order (UTF-8, LF)."""
+    with FIXTURE_MAIN.open(encoding="utf-8", newline="\n") as handle:
+        for line in handle:
+            yield line.rstrip("\n")
+
+
+def recorded_frames() -> Iterator[dict[str, Any]]:
+    """Every frame of the main replay file, parsed, in file order."""
+    for line in recorded_lines():
+        yield json.loads(line)
+
+
+def find_frame(predicate: Callable[[dict[str, Any]], bool]) -> dict[str, Any]:
+    """The first real recorded frame matching ``predicate``; LookupError when none does."""
+    for frame in recorded_frames():
+        if predicate(frame):
+            return frame
+    raise LookupError("no recorded frame matches the predicate")
+
+
+def sample_rows() -> list[dict[str, Any]]:
+    """Rows of the samples file: ``{"dialect": "v1" | "v2", "frame": {...}}`` (own token
+    universe: its tokens never join to the main file)."""
+    text = FIXTURE_SAMPLES.read_text(encoding="utf-8")
+    return [json.loads(line) for line in text.splitlines() if line.strip()]
+
+
+def fixture_selection_policy() -> dict[str, Any]:
+    """The manifest's ``selection_policy`` block: exactly the policy the cutter used."""
+    block: dict[str, Any] = fixture_manifest()["selection_policy"]
+    return block
+
+
+@pytest.fixture(scope="session")
+def fixture_allowlist_file(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """The manifest's allowlist domains in the ``domain  # category`` format of the allowlist
+    file, so fixture-driven tests never read the editable seed_domains.txt."""
+    path = tmp_path_factory.mktemp("fixture-allowlist") / "allowlist.txt"
+    domains = fixture_selection_policy()["allowlist_domains"]
+    body = "".join(f"{domain}  # manifest\n" for domain in domains)
+    path.write_text("# allowlist recorded in the fixture manifest at cut time\n" + body, "utf-8")
+    return path
+
+
+@pytest.fixture(scope="session")
+def fixture_policy_environment(fixture_allowlist_file: Path) -> dict[str, str]:
+    """Policy environment for subprocess tests, built from the manifest block. The active-root
+    and total caps are raised above the fixture's own size (the cutter applied no such cap), so
+    neither a ratified rate nor a ratified cap can change what a fixture replay selects."""
+    block = fixture_selection_policy()
+    frames = sum(1 for _line in recorded_lines())
+    return {
+        "TRACK_SAMPLE_PER_10K": str(block["sample_per_10k"]),
+        "TRACK_ALLOWLIST_FILE": str(fixture_allowlist_file),
+        "TRACK_REQUIRE_LANG": str(block["require_lang"]),
+        "TRACK_ROOT_TTL_HOURS": str(block["root_ttl_hours"]),
+        "TRACK_MAX_EVENTS_PER_CASCADE": str(block["max_events_per_cascade"]),
+        "TRACK_MAX_ACTIVE_ROOTS": str(frames * 10),
+        "STORE_MAX_EVENTS_TOTAL": str(frames * 10),
+    }
+
+
+@pytest.fixture
+def keyer() -> Any:
+    """A Keyer under the session's fake secret."""
+    from truthtrail.ingest.pseudonym import make_keyer, parse_secret
+
+    return make_keyer(parse_secret(FAKE_PSEUDONYM_SECRET))
 
 
 # --- Socket guard (D-28, T-03-12) ---------------------------------------------------------
