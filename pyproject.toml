@@ -67,6 +67,7 @@ branch = true
 # measured baseline minus 2 points (floor(98.342) - 2 = 96). It may only be raised, never lowered.
 # It is not in addopts, so partial test runs never trip it; CI runs `pytest --cov` (D-15).
 fail_under = 96
+precision = 2  # keep two decimals so 95.75 does not round up to 96 and pass the gate
 show_missing = true
 skip_covered = true
 

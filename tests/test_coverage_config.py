@@ -36,3 +36,8 @@ def test_addopts_does_not_enable_coverage() -> None:
 def test_legacy_directory_is_not_measured() -> None:
     source = _config()["tool"]["coverage"]["run"]["source"]
     assert all("legacy" not in entry for entry in source)
+
+
+def test_report_precision_is_two_decimals() -> None:
+    """With precision 0 the total is rounded before the fail_under check, so 95.5 would pass 96."""
+    assert _config()["tool"]["coverage"]["report"]["precision"] == 2
