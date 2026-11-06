@@ -49,7 +49,8 @@ default-groups = ["dev"]
 pythonpath = ["legacy", "."]
 testpaths = ["tests"]
 xfail_strict = true
-addopts = "-ra"
+addopts = "-ra --strict-markers"
+markers = ["requires_db: needs a real PostgreSQL (see tests/conftest.py)"]
 # Warnings are errors. This is stable because the transitive closure is pinned by uv.lock, so a
 # third-party warning cannot appear without a deliberate lock change.
 filterwarnings = [

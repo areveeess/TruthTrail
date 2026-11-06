@@ -1,14 +1,25 @@
-"""Shared test fixtures: network guard, env scrub, app client and payload builders.
+"""Shared test fixtures: network and socket guards, env scrub, app client, payload builders and
+the real-PostgreSQL fixtures.
 
 Every test runs inside an autouse ``responses`` mock, so an unmocked outbound
 ``requests`` call raises ``requests.exceptions.ConnectionError`` instead of
-reaching the live provider. The app and the fetcher module are imported lazily
+reaching the live provider, and inside an autouse socket guard that allows only loopback
+addresses and unix sockets. The app and the fetcher module are imported lazily
 inside ``client_factory`` so collection never imports them and a future package
 move touches this one file.
+
+Database tests (D-28) carry ``@pytest.mark.requires_db`` and use ``db_url``, ``empty_database``
+or ``make_engine``. The session provisions ``TEST_DATABASE_URL`` or a throwaway cluster
+(``tests/pg_cluster.py``) on first use only, so ``pytest -m "not requires_db"`` never starts one.
+No provisioning means one session-level exit naming the remedies, never a silent skip.
+``REQUIRE_DB_FLOOR`` fails a run in which fewer database tests executed than the floor.
 """
 
+import ipaddress
 import os
 import random
+import secrets
+import socket
 from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
@@ -63,6 +74,11 @@ ENV_NAMES = (
 )
 # Every settings class: a developer's local .env must never leak into a test.
 SETTINGS_CLASSES = (Settings, BootSettings, Policy, DatabaseSettings, IngestSettings)
+# The environment as the session started, before any per-test scrub: the only place the
+# test-only database variables are read (provisioning and the REQUIRE_DB_FLOOR check).
+SESSION_ENVIRON = dict(os.environ)
+# Fixtures that need a real PostgreSQL; a test that uses one must carry the requires_db marker.
+DB_FIXTURES = frozenset({"pg_provisioning", "pg_admin_url", "db_url", "empty_database"})
 
 
 @pytest.fixture(autouse=True)
@@ -217,3 +233,243 @@ def seeded_random() -> Iterator[Callable[[int], None]]:
 
     yield seed
     random.setstate(state)
+
+
+# --- Socket guard (D-28, T-03-12) ---------------------------------------------------------
+SOCKET_GUARD_MESSAGE = (
+    "socket guard: tests may connect only to loopback addresses and unix sockets; "
+    "a connection to a non-loopback host was blocked"
+)
+LOOKUP_GUARD_MESSAGE = (
+    "socket guard: tests may resolve only localhost and loopback addresses; "
+    "a name lookup of a non-loopback host was blocked"
+)
+
+
+def is_loopback_host(host: object) -> bool:
+    """True for ``localhost``, 127.0.0.0/8, ``::1`` and IPv4-mapped loopback addresses."""
+    if isinstance(host, bytes):
+        host = host.decode("ascii", errors="replace")
+    if not isinstance(host, str):
+        return False
+    if host.lower() in {"localhost", "localhost."}:
+        return True
+    try:
+        address = ipaddress.ip_address(host.split("%", 1)[0])
+    except ValueError:
+        return False
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    return address.is_loopback
+
+
+def is_allowed_address(family: int, address: object) -> bool:
+    """Loopback (inet) or any unix-socket path; everything else is blocked."""
+    if getattr(socket, "AF_UNIX", None) == family or isinstance(address, str | bytes):
+        return True
+    if isinstance(address, tuple) and address:
+        return is_loopback_host(address[0])
+    return False
+
+
+@pytest.fixture(autouse=True)
+def socket_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Block non-loopback connects and name lookups made from the test process.
+
+    The check runs before the real call, so no packet leaves. libpq (psycopg) and subprocess
+    servers do not use Python sockets and are unaffected; unix sockets always pass.
+    """
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+    real_getaddrinfo = socket.getaddrinfo
+    real_create_connection = socket.create_connection
+
+    def connect(self: socket.socket, address: Any) -> None:
+        if not is_allowed_address(self.family, address):
+            raise RuntimeError(SOCKET_GUARD_MESSAGE)
+        real_connect(self, address)
+
+    def connect_ex(self: socket.socket, address: Any) -> int:
+        if not is_allowed_address(self.family, address):
+            raise RuntimeError(SOCKET_GUARD_MESSAGE)
+        return real_connect_ex(self, address)
+
+    def getaddrinfo(host: Any, *args: Any, **kwargs: Any) -> Any:
+        if host is not None and not is_loopback_host(host):
+            raise RuntimeError(LOOKUP_GUARD_MESSAGE)
+        return real_getaddrinfo(host, *args, **kwargs)
+
+    def create_connection(address: Any, *args: Any, **kwargs: Any) -> socket.socket:
+        if not (isinstance(address, tuple) and address and is_loopback_host(address[0])):
+            raise RuntimeError(SOCKET_GUARD_MESSAGE)
+        return real_create_connection(address, *args, **kwargs)
+
+    monkeypatch.setattr(socket.socket, "connect", connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", connect_ex)
+    monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+    monkeypatch.setattr(socket, "create_connection", create_connection)
+
+
+# --- Real PostgreSQL (D-28, RESEARCH Pattern 11, F-09, F-10) --------------------------------
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """A test that uses a database fixture must carry the requires_db marker."""
+    unmarked = [
+        item.nodeid
+        for item in items
+        if DB_FIXTURES & set(getattr(item, "fixturenames", ()))
+        and item.get_closest_marker("requires_db") is None
+    ]
+    if unmarked:
+        raise pytest.UsageError(
+            "tests using a database fixture must be marked requires_db: " + ", ".join(unmarked)
+        )
+
+
+@pytest.fixture(scope="session")
+def pg_provisioning() -> Iterator[Any]:
+    """TEST_DATABASE_URL or a throwaway cluster for the whole session (one error if neither)."""
+    from pg_cluster import ProvisioningError, provision_admin_url
+
+    try:
+        provisioned = provision_admin_url(SESSION_ENVIRON)
+    except ProvisioningError as exc:
+        pytest.exit(f"requires_db: {exc}", returncode=3)
+    try:
+        yield provisioned
+    finally:
+        if provisioned.cluster is not None:
+            provisioned.cluster.stop()
+
+
+@pytest.fixture(scope="session")
+def pg_admin_url(pg_provisioning: Any) -> str:
+    """Admin URL of the session's server (tests never run DDL in the database it names)."""
+    url: str = pg_provisioning.admin_url
+    return url
+
+
+def _admin_engine(admin_url: str) -> Any:
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import NullPool
+
+    return create_engine(admin_url, isolation_level="AUTOCOMMIT", poolclass=NullPool)
+
+
+def _create_test_database(admin: Any, admin_url: str) -> tuple[str, str]:
+    """CREATE a UTF-8 ``truthtrail_test_{random}`` database; return (name, URL)."""
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.pool import NullPool
+
+    name = f"truthtrail_test_{secrets.token_hex(4)}"
+    with admin.connect() as connection:
+        connection.execute(text(f"CREATE DATABASE \"{name}\" ENCODING 'UTF8' TEMPLATE template0"))
+    url = make_url(admin_url).set(database=name).render_as_string(hide_password=False)
+    probe = create_engine(url, poolclass=NullPool)
+    try:
+        with probe.connect() as connection:
+            encoding = connection.execute(text("SHOW server_encoding")).scalar_one()
+    finally:
+        probe.dispose()
+    assert encoding == "UTF8", "test database is not UTF-8 (RESEARCH F-10)"
+    return name, url
+
+
+def _drop_test_database(admin: Any, name: str) -> None:
+    from sqlalchemy import text
+
+    assert name.startswith("truthtrail_test_")
+    with admin.connect() as connection:
+        connection.execute(text(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)'))
+
+
+@pytest.fixture(scope="session")
+def db_url(pg_admin_url: str) -> Iterator[str]:
+    """URL of a fresh ``truthtrail_test_{random}`` database, dropped at the end of the session."""
+    admin = _admin_engine(pg_admin_url)
+    name = None
+    try:
+        name, url = _create_test_database(admin, pg_admin_url)
+        yield url
+    finally:
+        if name is not None:
+            _drop_test_database(admin, name)
+        admin.dispose()
+
+
+class EmptyDatabases:
+    """Factory of extra empty test databases; ``close()`` drops every one it created."""
+
+    def __init__(self, admin_url: str) -> None:
+        self._admin_url = admin_url
+        self._admin = _admin_engine(admin_url)
+        self.names: list[str] = []
+
+    def __call__(self) -> str:
+        name, url = _create_test_database(self._admin, self._admin_url)
+        self.names.append(name)
+        return url
+
+    def close(self) -> None:
+        try:
+            while self.names:
+                _drop_test_database(self._admin, self.names.pop())
+        finally:
+            self._admin.dispose()
+
+
+@pytest.fixture
+def empty_database(pg_admin_url: str) -> Iterator[EmptyDatabases]:
+    """Call it to get the URL of a new empty database (migration tests need a fresh one)."""
+    factory = EmptyDatabases(pg_admin_url)
+    try:
+        yield factory
+    finally:
+        factory.close()
+
+
+@pytest.fixture
+def make_engine(request: pytest.FixtureRequest) -> Callable[..., Any]:
+    """Build an engine and register ``dispose`` as a finalizer (RESEARCH F-09).
+
+    ``filterwarnings = error`` turns a garbage-collected engine with open pooled connections
+    into a failing test, so every engine a test builds goes through this factory.
+    """
+    from sqlalchemy import create_engine
+
+    def make(url: str, **kwargs: Any) -> Any:
+        engine = create_engine(url, **kwargs)
+        request.addfinalizer(engine.dispose)
+        return engine
+
+    return make
+
+
+# --- REQUIRE_DB_FLOOR (D-28): absence of database tests can never read as green ------------
+_DB_TESTS_EXECUTED = [0]
+
+
+def pytest_runtest_logreport(report: pytest.TestReport) -> None:
+    executed = report.passed or report.failed
+    if report.when == "call" and "requires_db" in report.keywords and executed:
+        _DB_TESTS_EXECUTED[0] += 1
+
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    raw = SESSION_ENVIRON.get("REQUIRE_DB_FLOOR", "").strip()
+    if not raw:
+        return
+    reporter = session.config.pluginmanager.get_plugin("terminalreporter")
+    executed = _DB_TESTS_EXECUTED[0]
+    if not raw.isdigit():
+        message = "REQUIRE_DB_FLOOR must be a non-negative integer"
+    elif executed < int(raw):
+        message = (
+            f"REQUIRE_DB_FLOOR: {executed} database tests executed, fewer than the floor {raw}"
+        )
+    else:
+        return
+    if reporter is not None:
+        reporter.write_line(message, red=True, bold=True)
+    if session.exitstatus == pytest.ExitCode.OK:
+        session.exitstatus = pytest.ExitCode.TESTS_FAILED
