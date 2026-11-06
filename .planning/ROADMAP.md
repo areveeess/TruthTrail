@@ -19,6 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Secure & Honest Foundation** - Secrets out of the repo, honest upstream errors, provenance flags, validated typed responses, and tests that pin current behaviour before any refactor (completed 2026-10-17)
 - [x] **Phase 2: Engineering Baseline** - `src/truthtrail` package, pinned dependencies, pytest + hypothesis, CI, Dockerfile, `/health` and `/ready`, CORS, rate limiting, caching, timeouts (completed 2026-10-18)
 - [ ] **Phase 3: Real Propagation Data** - Source spike, Postgres schema, bounded Bluesky Jetstream collector, enrich step, `/v1` read API and DB-served news context
+- [ ] **Phase 3.1: Reddit as a Second Source** (INSERTED) - Reddit source spike, free non-commercial Data API with OAuth, bounded collector into the same schema, deletion compliance, `source` shown on every cascade
 - [ ] **Phase 4: Baseline Detection & Evaluation** - Dataset scripts and disjoint splits, evaluation harness with baseline 0, calibrated TF-IDF + LR, integrity checks, hash-verified model serving, model card
 - [ ] **Phase 5: Dashboard** - React + TypeScript triage feed, cascade detail view, risk badge with abstain state, score-this-text playground, all failure states, generated API client
 - [ ] **Phase 6: Deploy & Package v1** - Clean-clone docker compose, deployed live demo with seeded real cascades, README with results table, limitations and ethics
@@ -121,6 +122,20 @@ Plans:
 
 **Plans**: TBD
 
+### Phase 3.1: Reddit as a Second Source (INSERTED)
+
+**Goal**: Real Reddit discussion of the same tracked news links is collected under Reddit's free non-commercial Data API terms, stored in the Phase 3 schema with the same honest edge semantics, and served by the same `/v1` API labelled with its source.
+**Depends on**: Phase 3 (reuses its schema, enrich step and `/v1` API); must finish before Phase 6 so the deployed demo can include it
+**Requirements**: DATA-07, DATA-08
+**Inserted**: 2026-11-06 at the owner's request. X/Twitter stays out of scope (paid API only).
+**Success Criteria** (what must be TRUE):
+  1. A Reddit source spike, done before any Reddit code, records the current Data API terms, rate limit and eligible-use rules (non-commercial, deletion duties, any limits on model training), measured yield of posts linking allowlisted news domains, edge semantics (submission, comment, crosspost) and a retention and pseudonymisation policy; the owner ratifies it the same way as the Phase 3 spike, and the recorded fixture holds no usernames, text or personal links.
+  2. The OAuth client credentials come only from environment variables (owner-registered Reddit app); no credential or token is committed, logged or returned in an error body, and tests never call the real Reddit API.
+  3. A bounded Reddit collector stays within the documented rate limit, stores only items linked to tracked roots, upserts idempotently on the Reddit fullname, checkpoints after commit, and removes content that has been deleted or removed upstream within the ratified window.
+  4. Reddit events flow through the existing enrich step and `/v1` read API unchanged in shape, with a `source` field on every cascade and event; cross-source matching uses the article URL only, never account identity.
+
+**Plans**: TBD
+
 ### Phase 4: Baseline Detection & Evaluation
 
 **Goal**: A calibrated text classifier exists whose measured performance against the old keyword rules is reproducible from scripts, and it is served from a hash-verified artifact that never silently falls back to keyword rules.
@@ -192,6 +207,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 (Phases 3 and 4 may 
 | 1. Secure & Honest Foundation | 6/6 | Complete    | 2026-10-17 |
 | 2. Engineering Baseline | 12/12 | Complete    | 2026-10-18 |
 | 3. Real Propagation Data | 0/TBD | Not started | - |
+| 3.1. Reddit as a Second Source (INSERTED) | 0/TBD | Not started | - |
 | 4. Baseline Detection & Evaluation | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
 | 6. Deploy & Package v1 | 0/TBD | Not started | - |

@@ -33,6 +33,8 @@ Requirements for the first shippable portfolio release. Each maps to a roadmap p
 - [ ] **DATA-04**: An enrich step resolves parents and rolls up cascades; orphans are an explicit state; a property test shows shuffled arrival order yields identical state
 - [ ] **DATA-05**: A `/v1` read API serves cascade trees, timelines and stats with "observed since" and orphan counts
 - [ ] **DATA-06**: News context is refreshed for a bounded query set by a scheduled job and served from the database; the public API never proxies arbitrary user queries to the news API
+- [ ] **DATA-07**: A Reddit source spike (terms, rate limit, eligible use, deletion duties, yield, edge semantics, retention, pseudonymisation) is ratified by the owner before any Reddit code, with a scrubbed recorded fixture
+- [ ] **DATA-08**: A bounded Reddit collector using the free non-commercial Data API (OAuth credentials from env only) stores items linked to tracked roots in the Phase 3 schema, idempotent and checkpointed, honours upstream deletions, and every cascade and event carries its `source`
 
 ### Detection (ML)
 
@@ -121,6 +123,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-04 | Phase 3 | Pending |
 | DATA-05 | Phase 3 | Pending |
 | DATA-06 | Phase 3 | Pending |
+| DATA-07 | Phase 3.1 | Pending |
+| DATA-08 | Phase 3.1 | Pending |
 | ML-01 | Phase 4 | Pending |
 | ML-02 | Phase 4 | Pending |
 | ML-03 | Phase 4 | Pending |
@@ -138,8 +142,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-02 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 33 total
-- Mapped to phases: 33
+- v1 requirements: 35 total
+- Mapped to phases: 35
 - Unmapped: 0
 
 ---
