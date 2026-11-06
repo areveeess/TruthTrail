@@ -12,9 +12,9 @@
 .coverage*
 htmlcov
 legacy
-# The recorded real-data fixture is test input only (no runtime code reads it as of plan 03-01);
-# a plan that serves or replays it inside the image must remove this line deliberately.
-src/truthtrail/data/recorded
+# The recorded real-data fixture (src/truthtrail/data/recorded) is NOT ignored since plan 03-04:
+# ingest/source.py (ReplaySource) is runtime code that replays it, and Phase 6 seeds the demo by
+# replay inside the image (D-04). tests/test_container_files.py ties this rule to its readers.
 tests
 scripts
 .planning
