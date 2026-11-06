@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from spike_lib import selection as sel
+from truthtrail.ingest import selection as sel
 
 EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 ONE_US = timedelta(microseconds=1)

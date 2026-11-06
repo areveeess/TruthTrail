@@ -22,8 +22,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-from spike_lib import selection as sel
 from spike_lib.analysis import Cascade, Collector, Frame, parse_time_us
+from truthtrail.ingest import selection as sel
 
 TID = "234567abcdefghijklmnopqrstuvwxyz"
 SCRUBBER_VERSION = "scrub-2"

@@ -67,9 +67,14 @@ from typing import Any
 from urllib.parse import urlencode
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+# The selection functions ship in the package (plan 03-04 moved them with git mv); the src
+# directory goes first so `uv run --no-project` imports them without installing the project.
+# The import chain truthtrail -> truthtrail.ingest -> selection is standard library only.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from spike_lib import analysis, scrub
-from spike_lib import selection as sel
+
+from truthtrail.ingest import selection as sel
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_ALLOWLIST = REPO_ROOT / "src" / "truthtrail" / "data" / "seed_domains.txt"

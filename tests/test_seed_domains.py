@@ -16,7 +16,8 @@ SEED_FILE = REPO_ROOT / "src" / "truthtrail" / "data" / "seed_domains.txt"
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from spike_lib import analysis  # noqa: E402
-from spike_lib import selection as sel  # noqa: E402
+
+from truthtrail.ingest import selection as sel  # noqa: E402
 
 CATEGORIES = {
     "wire-service",

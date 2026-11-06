@@ -20,7 +20,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 from spike_lib import analysis, scrub  # noqa: E402
-from spike_lib import selection as sel  # noqa: E402
+
+from truthtrail.ingest import selection as sel  # noqa: E402
 
 POST = sel.POST_COLLECTION
 REPOST = sel.REPOST_COLLECTION
