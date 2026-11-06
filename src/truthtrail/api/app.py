@@ -3,6 +3,14 @@
 Per-app construction keeps tests isolated and gives later plans a place to hang the
 readiness registry, limiter and cache off ``app.state``. Strict ``Settings`` are read
 only in the lifespan (a missing key stops startup with uvicorn exit code 3), never here.
+
+Database wiring (Phase 3, D-19, D-25, D-27, RESEARCH F-11). ``create_app(engine=...)`` accepts
+an injected engine (tests, a caller that owns one); otherwise the lifespan builds one from
+``DATABASE_URL`` unless ``DEMO_MODE`` is on, owns it and disposes it at shutdown. Whether the
+``database`` readiness check exists is decided at construction from the injected engine or the
+``BootSettings`` presence flags, and the check reads ``app.state.engine`` lazily, so an app
+whose lifespan never ran (``TestClient(app)`` without ``with``) fails closed instead of
+pretending to be ready. Apps without a database (tests, ``DEMO_MODE``) register no check.
 """
 
 import time
@@ -11,6 +19,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.engine import Engine
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from truthtrail.api import analyze
@@ -24,6 +33,8 @@ from truthtrail.api.v1 import build_v1_router
 from truthtrail.core.boot import get_boot_settings
 from truthtrail.core.config import get_settings
 from truthtrail.core.readiness import ReadinessRegistry
+from truthtrail.db.engine import create_db_engine
+from truthtrail.db.health import database_ready
 
 APP_DESCRIPTION = (
     "Prototype under reconstruction. Labels the most recent matching news headline "
@@ -44,25 +55,52 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # uvicorn exits with "Application startup failed". Called through the module so a
         # patched loader is honoured; with demo mode off nothing is loaded.
         analyze.load_demo_fixture()
-    yield
+    # The engine is built lazily (no connection is opened here), so an unreachable database
+    # never stops startup: /ready reports it. An injected engine belongs to its creator.
+    if app.state.engine is None and not settings.demo_mode and settings.database_url is not None:
+        app.state.engine = create_db_engine(settings.database_url, role="api")
+        app.state.engine_owned = True
+    try:
+        yield
+    finally:
+        if app.state.engine_owned:
+            app.state.engine.dispose()
+            app.state.engine = None
+            app.state.engine_owned = False
 
 
-def register_default_checks(registry: ReadinessRegistry) -> None:
+def register_default_checks(
+    registry: ReadinessRegistry,
+    get_engine: Callable[[], Engine | None] | None = None,
+) -> None:
     """Extension hook: register the default dependency checks on a new registry.
 
-    Empty in Phase 2. Phase 3 registers the ``database`` check and Phase 4 the ``model``
-    check here, so ``/ready`` starts failing closed when either dependency is unavailable.
+    Phase 3 registers ``database`` when the app has a database, i.e. when ``get_engine`` is
+    given (``create_app`` passes it for an injected engine, or for ``DATABASE_URL`` set without
+    ``DEMO_MODE``). The check fails closed when the getter returns None (the lifespan has not
+    built the engine) and otherwise calls ``database_ready``. Phase 4 registers ``model`` here,
+    so ``/ready`` fails closed when either dependency is unavailable.
     """
+    if get_engine is not None:
+        getter = get_engine
+
+        def database() -> bool:
+            engine = getter()
+            return engine is not None and database_ready(engine)
+
+        registry.register("database", database)
 
 
 def create_app(
     *,
+    engine: Engine | None = None,
     cache_timer: Callable[[], float] | None = None,
     v1_registrars: Sequence[Callable[[LimitedRouter], None]] | None = None,
 ) -> FastAPI:
     """Build a new application; two calls never share routes or state.
 
-    ``cache_timer`` replaces the monotonic clock of the ``/analyze`` cache (used by tests
+    ``engine`` injects a database engine that the app uses but never disposes (its creator
+    does). ``cache_timer`` replaces the monotonic clock of the ``/analyze`` cache (used by tests
     so expiry never sleeps). ``v1_registrars`` replaces the default ``V1_REGISTRARS`` list
     (used by tests).
     """
@@ -73,9 +111,13 @@ def create_app(
         lifespan=lifespan,
     )
     register_problem_handlers(app)
+    boot = get_boot_settings()
+    app.state.engine = engine
+    app.state.engine_owned = False
     registry = ReadinessRegistry()
     app.state.readiness = registry
-    register_default_checks(registry)
+    has_database = engine is not None or (boot.database_url is not None and not boot.demo_mode)
+    register_default_checks(registry, (lambda: app.state.engine) if has_database else None)
     app.include_router(build_health_router())
     # Decorator-only limiting (D-23): no SlowAPIMiddleware, no default_limits.
     limiter = build_limiter()
@@ -84,7 +126,6 @@ def create_app(
     app.state.upstream_budget = UpstreamBudget()
     app.include_router(build_analyze_router(limiter))
     app.include_router(build_v1_router(limiter, v1_registrars))
-    boot = get_boot_settings()
     # Ordering rule: the LAST middleware added is the OUTERMOST. The catch-all is added first
     # so it sits just inside CORSMiddleware; an unexpected error is then rendered as a 500
     # problem+json before the response passes back out through CORS and gains its headers.

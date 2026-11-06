@@ -13,12 +13,20 @@ would replace the client address before this application sees it, whatever
 ``TRUST_PROXY_HEADERS`` says, and the per-IP rate limit could be bypassed. With the flag,
 uvicorn ignores ``FORWARDED_ALLOW_IPS`` and only the middleware ``create_app()`` adds (the
 same class uvicorn would use) acts on it.
+
+Database presence (Phase 3, D-25, D-27, RESEARCH F-11). ``demo_mode`` and ``database_url`` exist
+only so ``create_app()`` can decide at construction whether a database is part of this app (and
+so whether ``/ready`` registers the ``database`` check) without reading strict ``Settings``. They
+record presence, nothing more: the URL is never parsed or used here (the lifespan builds the
+engine from strict ``Settings``), a blank value counts as absent, and an unparseable
+``DEMO_MODE`` counts as false at construction (fail closed: the check is registered) while the
+strict ``Settings`` in the lifespan still stops startup on it.
 """
 
 from typing import Annotated
 from urllib.parse import urlsplit
 
-from pydantic import ValidationError, field_validator
+from pydantic import SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 from truthtrail.core.config import ConfigurationError
@@ -67,6 +75,24 @@ class BootSettings(BaseSettings):
     # The variable name FORWARDED_ALLOW_IPS deliberately matches the one uvicorn reads.
     trust_proxy_headers: bool = False
     forwarded_allow_ips: str = "127.0.0.1,::1"
+    # Presence flags for the construction-time database decision (see the module docstring).
+    demo_mode: bool = False
+    database_url: SecretStr | None = None
+
+    @field_validator("demo_mode", mode="before")
+    @classmethod
+    def _lenient_demo_mode(cls, value: object) -> object:
+        """Only an explicit true value counts; anything unparseable is false here."""
+        if isinstance(value, str):
+            return value.strip().lower() in {"1", "true", "yes", "on", "t", "y"}
+        return value
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _blank_url_is_absent(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @field_validator("cors_origins", mode="before")
     @classmethod
