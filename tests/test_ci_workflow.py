@@ -180,3 +180,82 @@ def test_no_job_skips_failures() -> None:
     # A pip-audit exception is allowed only with a dated comment naming the advisory (T-02-41).
     if "--ignore-vuln" in _run_text("audit"):
         assert re.search(r"#.*\d{4}-\d{2}-\d{2}", text)
+
+
+# --- Phase 3: PostgreSQL service, Alembic round trip, database floor (D-29) ------------------
+POSTGRES_IMAGE = re.compile(r"^postgres:\d+\.\d+(-[\w.]+)?@sha256:[0-9a-f]{64}$")
+SERVICE_URL = re.compile(r"^postgresql\+psycopg://postgres:[\w-]{1,15}@localhost:5432/postgres$")
+ALEMBIC_ORDER = (
+    "alembic upgrade head",
+    "alembic downgrade base",
+    "alembic upgrade head",
+    "alembic check",
+)
+# The collected requires_db count when plan 03-03 set the floor; the floor only ratchets up.
+MIN_DB_FLOOR = 65
+
+
+def _postgres_service() -> dict:
+    return _jobs()["tests"]["services"]["postgres"]
+
+
+def test_tests_job_has_a_digest_pinned_postgres_17_service_with_a_health_check() -> None:
+    service = _postgres_service()
+    assert POSTGRES_IMAGE.match(service["image"]), service["image"]
+    assert service["image"].startswith("postgres:17.")
+    options = service["options"]
+    assert '--health-cmd "pg_isready -U postgres"' in options
+    for flag in ("--health-interval", "--health-timeout", "--health-retries"):
+        assert flag in options, flag
+    assert service["ports"] == ["5432:5432"]
+
+
+def test_tests_job_requires_the_database_with_a_floor() -> None:
+    env = _jobs()["tests"]["env"]
+    assert env["REQUIRE_DB"] == "1"
+    assert SERVICE_URL.match(env["TEST_DATABASE_URL"])
+    floor = env["REQUIRE_DB_FLOOR"]
+    assert isinstance(floor, str)
+    assert floor.isdigit()
+    assert int(floor) >= MIN_DB_FLOOR
+    assert "DATABASE_URL" not in env, "tests never read DATABASE_URL; it is set per Alembic step"
+
+
+def test_alembic_round_trip_runs_in_order_before_pytest() -> None:
+    steps = _steps("tests")
+    runs = [str(step.get("run", "")) for step in steps]
+    alembic = [i for i, run in enumerate(runs) if "alembic " in run]
+    assert [runs[i].removeprefix("uv run --locked ").strip() for i in alembic] == list(
+        ALEMBIC_ORDER
+    )
+    sync = next(i for i, run in enumerate(runs) if "uv sync --locked" in run)
+    pytest_step = next(i for i, run in enumerate(runs) if "pytest" in run)
+    assert sync < alembic[0]
+    assert alembic[-1] < pytest_step
+    for i in alembic:
+        assert runs[i].startswith("uv run --locked alembic ")
+        assert SERVICE_URL.match(steps[i]["env"]["DATABASE_URL"])
+
+
+def test_the_service_password_is_a_short_throwaway() -> None:
+    service = _postgres_service()
+    password = service["env"]["POSTGRES_PASSWORD"]
+    assert isinstance(password, str)
+    assert 0 < len(password) < 16
+    assert "throwaway" in password
+    text = _text()
+    assert not re.search(r"(?i)password\s*:\s*\S{16,}", text)
+    for url in re.findall(r"postgresql\+psycopg://\S+", text):
+        assert f":{password}@" in url
+    assert "secrets." not in text
+
+
+def test_docker_job_asserts_the_packaged_migrations_in_the_image() -> None:
+    steps = _steps("docker")
+    check = [i for i, step in enumerate(steps) if "packaged_head" in str(step.get("run", ""))]
+    assert len(check) == 1
+    run = steps[check[0]]["run"]
+    assert 'docker exec "$container" python -I -c' in run
+    assert "from truthtrail.db import packaged_head" in run
+    assert "assert head" in run
+    assert check[0] < len(steps) - 1  # before the always() cleanup step

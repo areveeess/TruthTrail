@@ -151,7 +151,11 @@ def test_cmd_is_the_exact_exec_form_with_the_proxy_header_flag() -> None:
 
 
 def test_no_env_or_arg_carries_a_secret_or_demo_mode() -> None:
-    forbidden = re.compile(r"KEY|SECRET|TOKEN|PASSWORD|GNEWS|DEMO_MODE", re.IGNORECASE)
+    # Phase 3 (D-29): the image must never bake in the database URL, the pseudonym key or the
+    # collector's operator values either.
+    forbidden = re.compile(
+        r"KEY|SECRET|TOKEN|PASSWORD|GNEWS|DEMO_MODE|DATABASE_URL|PSEUDONYM|COLLECTOR", re.IGNORECASE
+    )
     for line in (*_instructions("ENV"), *_instructions("ARG")):
         assert not forbidden.search(line), f"secret-like or DEMO_MODE setting: {line}"
 
@@ -195,3 +199,122 @@ def test_the_recorded_fixture_stays_out_of_the_image_while_no_runtime_code_reads
 def test_project_has_no_readme_key_so_dockerignored_markdown_cannot_break_the_build() -> None:
     project = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
     assert "readme" not in project
+
+
+# --- Phase 3: no ignore rule may hide the packaged runtime data (D-29) -----------------------
+# Context-relative paths the image needs at runtime: readiness reads the migration head, the
+# collector reads the allowlist, the news job reads the topics file.
+RUNTIME_DATA = (
+    "src/truthtrail/db/migrations/env.py",
+    "src/truthtrail/db/migrations/versions/0001_baseline.py",
+    "src/truthtrail/data/seed_domains.txt",
+    "src/truthtrail/data/news_topics.toml",
+)
+# Files a later plan creates; the ignore rules are checked for them now, their existence then.
+PENDING_RUNTIME_DATA = {"src/truthtrail/data/news_topics.toml": "plan 03-08"}
+RECORDED_FIXTURE = "src/truthtrail/data/recorded/bluesky-2026-10-19.jsonl"
+
+
+def _pattern_regex(pattern: str) -> re.Pattern[str]:
+    """Docker's .dockerignore matching: anchored at the context root, ``*`` and ``?`` stay
+    inside one path segment, ``**`` spans any number of segments."""
+    segments = pattern.strip("/").split("/")
+    regex = ""
+    for index, segment in enumerate(segments):
+        last = index == len(segments) - 1
+        if segment == "**":
+            # In the middle or at the start: zero or more whole segments; at the end: anything.
+            regex += ".*" if last else "(?:.*/)?"
+            continue
+        for char in segment:
+            if char == "*":
+                regex += "[^/]*"
+            elif char == "?":
+                regex += "[^/]"
+            else:
+                regex += re.escape(char)
+        if not last:
+            regex += "/"
+    return re.compile(regex + "$")
+
+
+def hidden_by(entries: list[str], path: str) -> bool:
+    """True when ``entries`` exclude ``path`` (a pattern matching a parent directory hides
+    everything under it; a later ``!pattern`` re-includes; the last matching rule wins)."""
+    segments = path.split("/")
+    candidates = ["/".join(segments[: i + 1]) for i in range(len(segments))]
+    hidden = False
+    for entry in entries:
+        negated = entry.startswith("!")
+        regex = _pattern_regex(entry.removeprefix("!"))
+        if any(regex.match(candidate) for candidate in candidates):
+            hidden = not negated
+    return hidden
+
+
+def _ordered_entries() -> list[str]:
+    text = (ROOT / ".dockerignore").read_text(encoding="utf-8")
+    return [
+        line.strip()
+        for line in text.split("\n")
+        if line.strip() and not line.strip().startswith("#")
+    ]
+
+
+def test_no_ignore_rule_hides_the_packaged_migrations_or_runtime_data() -> None:
+    entries = _ordered_entries()
+    hidden = [path for path in RUNTIME_DATA if hidden_by(entries, path)]
+    assert hidden == [], f"hidden from the image: {hidden}"
+    for path in RUNTIME_DATA:
+        exists = (ROOT / path).is_file()
+        if path in PENDING_RUNTIME_DATA:
+            assert not exists, (
+                f"{path} now exists ({PENDING_RUNTIME_DATA[path]}): remove it from "
+                "PENDING_RUNTIME_DATA so its existence is enforced"
+            )
+        else:
+            assert exists, path
+
+
+def test_the_ignore_matcher_is_not_blind() -> None:
+    target = "src/truthtrail/db/migrations/env.py"
+    for hiding in (
+        "src",
+        "src/truthtrail/db",
+        "**/migrations",
+        "**/*.py",
+        "src/truthtrail/db/migrations/*.py",
+        "src/*/db",
+        "src/**",
+        "src/**/env.py",
+        "s?c",
+    ):
+        assert hidden_by([hiding], target), hiding
+    for harmless in (
+        "*.md",
+        "scripts",
+        "tests",
+        "**/__pycache__",
+        "migrations",
+        "*.py",
+        ".env*",
+        "src/truthtrail/data/recorded",
+        "src/**/versions",
+        "s?",
+    ):
+        assert not hidden_by([harmless], target), harmless
+    assert not hidden_by(["src", "!src/truthtrail/db/migrations"], target)
+    assert hidden_by(["!src", "src/truthtrail"], target)
+
+
+def test_the_recorded_fixture_ships_once_runtime_code_reads_it() -> None:
+    """The mirror of the rule above: the fixture is hidden exactly while nothing reads it."""
+    package = ROOT / "src" / "truthtrail"
+    readers = [
+        path
+        for path in package.rglob("*.py")
+        if "data/recorded" in path.read_text(encoding="utf-8")
+        or '"recorded"' in path.read_text(encoding="utf-8")
+    ]
+    assert (ROOT / RECORDED_FIXTURE).is_file()
+    assert hidden_by(_ordered_entries(), RECORDED_FIXTURE) is (not readers)

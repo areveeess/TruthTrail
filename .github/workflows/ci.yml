@@ -1,6 +1,8 @@
 # CI on every push and pull request, seven jobs: copy-guard, gitleaks, tests (with coverage gate), lint, typecheck,
 # audit (pip-audit against the exported lock) and docker (build, run with DEMO_MODE=true, probe the endpoints).
-# Installs use uv with the committed uv.lock (Phase 2).
+# Installs use uv with the committed uv.lock (Phase 2). The tests job runs against a PostgreSQL 17 service
+# container (pinned by tag and digest) with REQUIRE_DB=1 and a floor on executed database tests, after the real
+# Alembic round trip upgrade head, downgrade base, upgrade head and check (Phase 3, D-29).
 # Third-party actions are pinned by full commit SHA with the version in a trailing comment (D-20).
 name: ci
 
@@ -75,7 +77,27 @@ jobs:
 
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    # PostgreSQL 17 for the database tests (D-28, D-29). postgres:17.11-bookworm is pinned by the registry
+    # manifest digest (an OCI image index) resolved on 2026-11-06. ci-throwaway is the password of this job-local
+    # service container, which exists only for the job and is reachable only from the runner: it is not a
+    # secret, and it is kept short and unquoted so the credential backstop cannot read it as one.
+    services:
+      postgres:
+        image: postgres:17.11-bookworm@sha256:665dc7b37ac52a17e298511414c21d23ffa4e6a6ef6225b3e5d59c7afb35e994
+        env:
+          POSTGRES_PASSWORD: ci-throwaway
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Tests create, migrate and drop their own truthtrail_test_* databases on this server; they never read
+      # DATABASE_URL. REQUIRE_DB=1 makes an unreachable server a hard error instead of a local fallback, and
+      # the run fails when fewer database tests executed than REQUIRE_DB_FLOOR (the collected requires_db
+      # count when the floor was last set; it only ratchets up).
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:ci-throwaway@localhost:5432/postgres
+      REQUIRE_DB: "1"
+      REQUIRE_DB_FLOOR: "65"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -86,6 +108,24 @@ jobs:
           python-version: "3.13"
           enable-cache: true
       - run: uv sync --locked
+      # The real Alembic command line against the service's default database (empty at this point), in addition
+      # to the programmatic round trip in tests/test_migrations.py (D-29, SC2). DATABASE_URL is set per step only.
+      - name: Alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:ci-throwaway@localhost:5432/postgres
+        run: uv run --locked alembic upgrade head
+      - name: Alembic downgrade base
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:ci-throwaway@localhost:5432/postgres
+        run: uv run --locked alembic downgrade base
+      - name: Alembic upgrade head again
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:ci-throwaway@localhost:5432/postgres
+        run: uv run --locked alembic upgrade head
+      - name: Alembic check (models and migrations agree)
+        env:
+          DATABASE_URL: postgresql+psycopg://postgres:ci-throwaway@localhost:5432/postgres
+        run: uv run --locked alembic check
       # --cov enforces [tool.coverage.report] fail_under from pyproject.toml (D-15).
       - run: uv run --locked pytest --cov --hypothesis-profile=ci -q
 
@@ -172,6 +212,12 @@ jobs:
           echo "container uid: $uid"
           test "$uid" != "0"
           docker exec "$container" python -I -c "import importlib.util as u, sys; bad = [n for n in ('spread_simulator', 'users', 'risk_analyzer', 'pytest') if u.find_spec(n) is not None]; print('importable:', bad); sys.exit(1 if bad else 0)"
+      # The packaged migrations ship in the image (D-29): readiness reads the head from them, so a missing
+      # directory or revision fails this step.
+      - name: Assert the packaged migrations are in the image
+        run: |
+          container=$(cat "$RUNNER_TEMP/container_id")
+          docker exec "$container" python -I -c "from truthtrail.db import packaged_head; head = packaged_head(); print(head); assert head"
       # Runs even after a failure, prints the logs and stops the container; a failure above still fails the job.
       - name: Container logs and cleanup
         if: always()
