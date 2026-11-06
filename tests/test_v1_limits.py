@@ -130,7 +130,7 @@ def test_default_limit_applies_without_configuration(client_factory: Callable[..
 
 
 def test_no_registrars_means_no_v1_path_in_openapi(client_factory: Callable[..., Any]) -> None:
-    client = client_factory()
+    client = client_factory(app_kwargs={"v1_registrars": []})
 
     paths = list(client.get("/openapi.json").json()["paths"])
 

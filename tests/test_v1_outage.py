@@ -314,3 +314,27 @@ def test_the_read_connection_refuses_writes(
             text("SELECT count(*) FROM news_queries WHERE slug = :s"), {"s": "s" + MARKER}
         ).scalar_one()
     assert count == 0
+
+
+def test_the_real_data_routes_are_503_during_an_outage_and_recover(
+    client_factory: Callable[..., Any],
+    make_engine: Callable[..., Engine],
+    isolated_url: str,
+    admin: Engine,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    name = str(make_url(isolated_url).database)
+    forbidden = _forbidden_fragments(isolated_url)
+    client = client_factory(app_kwargs={"engine": make_engine(isolated_url)})
+    assert client.get("/v1/cascades").status_code == 200
+    _set_connections(admin, name, allowed=False)
+    try:
+        for path in ("/v1/cascades", "/v1/cascades/1", "/v1/cascades/1/tree"):
+            assert_database_problem(client.get(path), "database_unavailable", caplog, forbidden)
+        assert_not_ready_database(client.get("/ready"), forbidden)
+    finally:
+        _set_connections(admin, name, allowed=True)
+    body = client.get("/v1/cascades").json()
+    assert body["items"] == []
+    assert body["meta"]["source_status"] == "empty"

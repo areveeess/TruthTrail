@@ -83,7 +83,15 @@ SETTINGS_CLASSES = (Settings, BootSettings, Policy, DatabaseSettings, IngestSett
 SESSION_ENVIRON = dict(os.environ)
 # Fixtures that need a real PostgreSQL; a test that uses one must carry the requires_db marker.
 DB_FIXTURES = frozenset(
-    {"pg_provisioning", "pg_admin_url", "db_url", "empty_database", "migrated_db_url", "clean_db"}
+    {
+        "pg_provisioning",
+        "pg_admin_url",
+        "db_url",
+        "empty_database",
+        "migrated_db_url",
+        "clean_db",
+        "seeded_db_url",
+    }
 )
 
 
@@ -1009,3 +1017,90 @@ def truncate_application_tables(engine: Any) -> None:
         connection.execute(
             text("TRUNCATE " + ", ".join(APPLICATION_TABLES) + " RESTART IDENTITY CASCADE")
         )
+
+
+# --- /v1 read API helpers (plan 03-07, D-23, D-24) ------------------------------------------
+# A rate limit no read-only walk reaches (the default is 60 per minute per app).
+V1_TEST_RATE_LIMIT = "100000/minute"
+SEEDED_RUN_STARTED_AT = "2026-10-19T12:00:00+00:00"
+
+
+@pytest.fixture(scope="session")
+def seeded_db_url(pg_admin_url: str, fixture_allowlist_file: Path) -> Iterator[str]:
+    """A migrated database of its own holding the packaged fixture replayed through the collector
+    pipeline (explicit test policy), one recorded replay run, and enrich run with an explicit
+    ``as_of`` equal to the checkpoint's stream time. Shared by the read-only /v1 tests of the
+    session; tests that write use ``clean_db`` or a database of their own instead."""
+    from sqlalchemy import text
+
+    from truthtrail.db.engine import create_db_engine
+    from truthtrail.enrich.apply import datetime_from_us, enrich_dirty
+    from truthtrail.ingest.pseudonym import make_keyer, parse_secret
+
+    admin = _admin_engine(pg_admin_url)
+    name = None
+    try:
+        name, url = _create_test_database(admin, pg_admin_url)
+        upgrade_to_head(url)
+        engine = create_db_engine(url, role="jobs")
+        try:
+            keyer = make_keyer(parse_secret(FAKE_PSEUDONYM_SECRET))
+            run_pipeline(engine, make_test_policy(fixture_allowlist_file), fixture_items(keyer))
+            with engine.begin() as connection:
+                cursor_us = int(
+                    connection.execute(
+                        text("SELECT max(cursor_time_us) FROM ingest_checkpoints")
+                    ).scalar_one()
+                )
+                connection.execute(
+                    text(
+                        "INSERT INTO ingest_runs (source, dialect, host, mode, started_at,"
+                        " finished_at, status, last_time_us)"
+                        " VALUES ('test-replay', 'v2', 'recorded', 'replay', :started,"
+                        " :started, 'completed', :last)"
+                    ),
+                    {"started": SEEDED_RUN_STARTED_AT, "last": cursor_us},
+                )
+            result = enrich_dirty(engine, as_of=datetime_from_us(cursor_us))
+            assert result.errors == {}
+            assert result.enriched == result.selected > 0
+        finally:
+            engine.dispose()
+        yield url
+    finally:
+        if name is not None:
+            _drop_test_database(admin, name)
+        admin.dispose()
+
+
+@pytest.fixture
+def v1_client(
+    client_factory: Callable[..., Any], make_engine: Callable[..., Any]
+) -> Callable[..., Any]:
+    """Build a TestClient over an app with an injected engine for ``url``, the /v1 rate limit
+    raised (``V1_TEST_RATE_LIMIT``) and an optional injected clock and cache timer. It keeps the
+    client_factory's fake news key and sets neither DATABASE_URL nor DEMO_MODE (plan 03-12
+    proves the key-unset app). ``env`` adds environment variables (policy overrides);
+    ``engine_kwargs`` reach ``create_db_engine``."""
+
+    def make(
+        url: str,
+        *,
+        clock: Callable[[], Any] | None = None,
+        cache_timer: Callable[[], float] | None = None,
+        env: Mapping[str, str] | None = None,
+        registrars: Any = None,
+        **engine_kwargs: Any,
+    ) -> Any:
+        app_kwargs: dict[str, Any] = {"engine": make_engine(url, **engine_kwargs)}
+        if clock is not None:
+            app_kwargs["clock"] = clock
+        if cache_timer is not None:
+            app_kwargs["cache_timer"] = cache_timer
+        if registrars is not None:
+            app_kwargs["v1_registrars"] = registrars
+        return client_factory(
+            env={"RATE_LIMIT_V1": V1_TEST_RATE_LIMIT, **(env or {})}, app_kwargs=app_kwargs
+        )
+
+    return make

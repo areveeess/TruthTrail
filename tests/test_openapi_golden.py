@@ -3,8 +3,9 @@
 ``tests/golden/openapi_phase1.json`` was dumped from the unmoved Phase 1 code and
 is pinned by sha256 below. Later phases must not edit it: Phases 3-5 add their
 own snapshots. The live document may differ from it only by the declared
-additions: the new paths ``/health`` and ``/ready``, new ``429`` response
-entries, and the ``const`` keyword on ``Problem.synthetic`` (D-20).
+additions: the new paths ``/health`` and ``/ready``, the Phase 3 paths below
+``/v1/`` (D-23), new ``429`` response entries, and the ``const`` keyword on
+``Problem.synthetic`` (D-20).
 
 Hygiene: failure messages name differing top-level sections only and never dump
 a whole document.
@@ -19,6 +20,8 @@ from typing import Any
 GOLDEN_PATH = Path(__file__).parent / "golden" / "openapi_phase1.json"
 GOLDEN_SHA256 = "dcd039653878201b74e6a49d3f033d556548ea8612912c2b6da6360683d7dad7"
 ALLOWED_NEW_PATHS = {"/health", "/ready"}
+# Declared Phase 3 addition (D-23, plan 03-07): the /v1 read API.
+ALLOWED_NEW_PREFIX = "/v1/"
 ALLOWED_NEW_RESPONSE_CODES = {"429"}
 HTTP_METHODS = {"get", "put", "post", "delete", "patch", "options", "head"}
 
@@ -82,9 +85,10 @@ def test_only_declared_additions_exist(client: Any) -> None:
     current = client.get("/openapi.json").json()
     base = load_golden()
     new_paths = set(current["paths"]) - set(base["paths"])
-    assert new_paths <= ALLOWED_NEW_PATHS, (
-        f"undeclared paths: {sorted(new_paths - ALLOWED_NEW_PATHS)}"
-    )
+    undeclared = {
+        p for p in new_paths if p not in ALLOWED_NEW_PATHS and not p.startswith(ALLOWED_NEW_PREFIX)
+    }
+    assert not undeclared, f"undeclared paths: {sorted(undeclared)}"
     for path, item in base["paths"].items():
         for method, operation in item.items():
             if method not in HTTP_METHODS:
