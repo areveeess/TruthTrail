@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 3
 current_phase_name: Real Propagation Data
-current_plan: 03-03 (next); 03-01 and 03-02 complete
+current_plan: 03-04 (next); 03-01 to 03-03 complete
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-11-06T08:51:59.413Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-11-06T09:32:31.992Z"
 last_activity: 2026-11-06
-last_activity_desc: Plan 03-02 executed (sqlalchemy/psycopg/alembic/websockets pins, core/policy.py, db/ engine factory, real-PostgreSQL fixtures)
-state_head: 01f4b6edeff3c315a6f387c770ec1128610c9b36
+last_activity_desc: Plan 03-03 executed (D-20 schema and packaged Alembic baseline, /ready database check, CI PostgreSQL 17 service and Alembic round trip)
+state_head: 5afa686f10a32939b258ab7fb191a3002210ed18
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 20
+  completed_plans: 21
 milestone_name: Lean MVP
 ---
 
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 3 — Real Propagation Data
-Current Plan: 03-03 (03-01 and 03-02 complete)
+Current Plan: 4
 Total Plans in Phase: 12
-Status: 03-02 complete; executing 03-03 next
-Last activity: 2026-11-06 — plan 03-02 executed (database foundation)
+Status: 03-01 to 03-03 complete; executing 03-04 next
+Last activity: 2026-11-06 — plan 03-03 executed (schema, migrations, database readiness, CI Postgres)
 
 Progress: [███░░░░░░░] 33%
 
@@ -79,6 +79,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02 P11 | 15min | 2 tasks | 4 files |
 | Phase 02 P12 | 25min | 3 tasks | 7 files |
 | Phase 03 P02 | 22min | 3 tasks | 22 files |
+| Phase 03 P03 | 34min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -119,6 +120,10 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-02: psycopg[binary] 3.3.6 without the pool extra (F-12), a documented deviation from D-19; eight packages added to uv.lock, none changed
 - [Phase 03]: 03-02: Database tests use @pytest.mark.requires_db against a real PostgreSQL (TEST_DATABASE_URL, else a non-root throwaway cluster via runuser); a database fixture without the marker is a usage error; REQUIRE_DB_FLOOR fails runs below the floor
 - [Phase 03]: 03-02: create_db_engine is the only engine builder (pool 5+5, pool_timeout 2 s, connect 3 s, statement 5 s api / 30 s collector and jobs, lock 2 s, SET TIME ZONE UTC on connect); URL options are kept
+- [Phase 3]: 03-03: The D-20 schema is declarative models (single source of truth) with the edge, orphan, tombstone and minimisation invariants as named CHECKs; key widths follow d17-hmac-v1 (URI 20, pseudonym 16, digests 26); events.via_uri present
+- [Phase 3]: 03-03: Migrations ship in src/truthtrail/db/migrations (baseline 0001); the URL never reaches the ini or set_main_option; python -m truthtrail.db migrate|check|heads exits 0/1/3/5 with no URL in output
+- [Phase 3]: 03-03: /ready registers database for an injected engine or DATABASE_URL without DEMO_MODE; the check reads app.state.engine lazily and fails closed; the lifespan owns and disposes only the engine it builds
+- [Phase 3]: 03-03: CI tests job uses postgres:17.11-bookworm@sha256:665dc7b3... (re-resolved; tag moved since planning), REQUIRE_DB=1, REQUIRE_DB_FLOOR=65 and the four-step Alembic CLI round trip
 
 ### Pending Todos
 
@@ -142,8 +147,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T08:51:59.310Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-11-06T09:32:31.854Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).

@@ -28,7 +28,7 @@ Requirements for the first shippable portfolio release. Each maps to a roadmap p
 ### Data (DATA)
 
 - [ ] **DATA-01**: A source spike produces a written decision covering source terms, live-tail volume, cascade yield, edge semantics, tracked-root selection policy and retention policy, plus a recorded real-data fixture
-- [ ] **DATA-02**: A Postgres schema with Alembic migrations stores accounts, claims, cascades and events, including `observed_at`, `occurred_at`, `edge_kind`, `inferred` and `parent_uri`
+- [x] **DATA-02**: A Postgres schema with Alembic migrations stores accounts, claims, cascades and events, including `observed_at`, `occurred_at`, `edge_kind`, `inferred` and `parent_uri`
 - [ ] **DATA-03**: A bounded Bluesky Jetstream v2 collector ingests tracked roots with idempotent upserts keyed on the `at://` URI, checkpoints after commit, and honours deletes
 - [ ] **DATA-04**: An enrich step resolves parents and rolls up cascades; orphans are an explicit state; a property test shows shuffled arrival order yields identical state
 - [ ] **DATA-05**: A `/v1` read API serves cascade trees, timelines and stats with "observed since" and orphan counts
@@ -118,7 +118,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENG-05 | Phase 2 | Complete |
 | ENG-06 | Phase 2 | Complete |
 | DATA-01 | Phase 3 | Pending |
-| DATA-02 | Phase 3 | Pending |
+| DATA-02 | Phase 3 | Complete |
 | DATA-03 | Phase 3 | Pending |
 | DATA-04 | Phase 3 | Pending |
 | DATA-05 | Phase 3 | Pending |
