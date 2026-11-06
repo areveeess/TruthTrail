@@ -409,3 +409,17 @@ def test_main_reports_drift_with_exit_1_and_migrates_in_process(
         engine.dispose()
     assert db_main(["check"]) == 1
     assert "drift" in capsys.readouterr().err
+
+
+def test_main_exit_codes_in_process(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert db_main(["heads"]) == 0
+    assert capsys.readouterr().out.strip() == packaged_head()
+    assert db_main(["migrate"]) == 3  # DATABASE_URL is scrubbed by the autouse guard
+    assert "DATABASE_URL" in capsys.readouterr().err
+    monkeypatch.setenv("DATABASE_URL", f"postgresql://tt_user:p%25w{MARKER}@127.0.0.1:1/tt")
+    assert db_main(["check"]) == 5
+    err = capsys.readouterr().err
+    assert err.strip() == "database failure: OperationalError"
+    assert MARKER not in err

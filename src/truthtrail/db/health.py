@@ -30,7 +30,6 @@ def database_ready(engine: Engine) -> bool:
     head = packaged_head()
     with engine.connect() as connection:
         connection.execute(_SET_TIMEOUT, {"ms": str(READINESS_STATEMENT_TIMEOUT_MS)})
-        if connection.execute(_SELECT_ONE).scalar_one() != 1:
-            return False
+        connection.execute(_SELECT_ONE).scalar_one()
         versions = list(connection.execute(_SELECT_VERSIONS).scalars())
     return versions == [head]

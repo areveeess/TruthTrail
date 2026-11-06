@@ -118,6 +118,7 @@ def test_the_walk_covers_the_database_layer_and_the_migrations() -> None:
     assert {
         "db/models.py",
         "db/engine.py",
+        "db/migration_env.py",
         "db/migrations/env.py",
         "db/migrations/versions/0001_baseline.py",
     } <= names
