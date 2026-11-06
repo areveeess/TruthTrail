@@ -42,6 +42,12 @@ PURE_INGEST = (
     "truthtrail.ingest.normalise",
 )
 
+# Plan 03-06 (D-22): the pure resolver and rollup import only the standard library and
+# truthtrail.core (and each other); test_pure_enrich_modules_import_only_stdlib_and_core
+# enforces the positive list, the rule below the layer table.
+PURE_ENRICH = ("truthtrail.enrich.resolve", "truthtrail.enrich.rollup")
+PURE_ENRICH_ALLOWED = ("truthtrail.core", *PURE_ENRICH)
+
 FORBIDDEN: tuple[Rule, ...] = (
     Rule(
         "core imports no higher layer",
@@ -70,6 +76,25 @@ FORBIDDEN: tuple[Rule, ...] = (
         "pure ingest modules import nothing from db",
         PURE_INGEST,
         ("truthtrail.db",),
+    ),
+    Rule(
+        "pure enrich modules import nothing from db, api, ingest, jobs, services or schemas",
+        PURE_ENRICH,
+        (
+            "truthtrail.db",
+            "truthtrail.api",
+            "truthtrail.ingest",
+            "truthtrail.jobs",
+            "truthtrail.services",
+            "truthtrail.schemas",
+            "sqlalchemy",
+            "psycopg",
+        ),
+    ),
+    Rule(
+        "enrich never imports api or ingest (plan 03-06)",
+        ("truthtrail.enrich",),
+        ("truthtrail.api", "truthtrail.ingest"),
     ),
     Rule(
         "only the live Jetstream source imports websockets (plan 03-05)",
@@ -217,6 +242,31 @@ def test_every_rule_governs_at_least_one_existing_module() -> None:
             "websockets.asyncio.client",
         ),
         ("truthtrail.api.app", "from websockets import exceptions\n", "websockets"),
+        ("truthtrail.enrich.resolve", "from truthtrail.db import models\n", "truthtrail.db"),
+        ("truthtrail.enrich.rollup", "import sqlalchemy\n", "sqlalchemy"),
+        (
+            "truthtrail.enrich.resolve",
+            "from ..ingest.pseudonym import make_keyer\n",
+            "truthtrail.ingest.pseudonym",
+        ),
+        ("truthtrail.enrich.rollup", "from truthtrail import jobs\n", "truthtrail.jobs"),
+        (
+            "truthtrail.enrich.resolve",
+            "import truthtrail.services.gnews\n",
+            "truthtrail.services.gnews",
+        ),
+        (
+            "truthtrail.enrich.rollup",
+            "from truthtrail.schemas.models import Event\n",
+            "truthtrail.schemas.models",
+        ),
+        ("truthtrail.enrich.apply", "from truthtrail.api import app\n", "truthtrail.api"),
+        ("truthtrail.enrich.purge", "from ..ingest import writer\n", "truthtrail.ingest"),
+        (
+            "truthtrail.ingest.run",
+            "from truthtrail.enrich.apply import x\n",
+            "truthtrail.enrich.apply",
+        ),
     ],
 )
 def test_the_walker_flags_each_rule(module: str, source: str, forbidden: str) -> None:
@@ -248,6 +298,50 @@ def test_allowed_imports_are_not_flagged() -> None:
     assert violations("from truthtrail.core import cascade\n", "truthtrail.api.app") == []
     assert violations("import websockets\n", "truthtrail.ingest.source") == []
     assert violations("import websocketsx\n", "truthtrail.ingest.run") == []
+
+
+def non_pure_enrich_imports(source: str, module: str) -> list[str]:
+    """Imports of a pure enrich module outside the standard library and its allowed list."""
+    offenders: list[str] = []
+    for name in sorted(imported_modules(source, module)):
+        top = name.partition(".")[0]
+        if top == "truthtrail":
+            if not _matches(name, PURE_ENRICH_ALLOWED):
+                offenders.append(name)
+        elif top not in sys.stdlib_module_names:
+            offenders.append(name)
+    return offenders
+
+
+def test_pure_enrich_modules_import_only_stdlib_and_core() -> None:
+    for module in PURE_ENRICH:
+        path = PACKAGE_ROOT.joinpath(*module.split(".")[1:]).with_suffix(".py")
+        assert path.is_file(), module
+        assert non_pure_enrich_imports(path.read_text(encoding="utf-8"), module) == []
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import sqlalchemy\n",
+        "from hypothesis import given\n",
+        "from truthtrail.enrich.apply import enrich_dirty\n",
+        "from ..db.locks import ENRICH_LOCK_KEY\n",
+        "import truthtrail.ingest\n",
+    ],
+)
+def test_the_pure_enrich_check_is_not_blind(source: str) -> None:
+    assert non_pure_enrich_imports(source, "truthtrail.enrich.resolve") != []
+
+
+def test_the_pure_enrich_check_allows_stdlib_core_and_siblings() -> None:
+    source = (
+        "from collections.abc import Iterable\n"
+        "from datetime import UTC\n"
+        "from truthtrail.core.cascade import order_events\n"
+        "from truthtrail.enrich.rollup import Rollup\n"
+    )
+    assert non_pure_enrich_imports(source, "truthtrail.enrich.resolve") == []
 
 
 def test_importing_the_app_loads_no_ingest_module_and_no_websockets(
