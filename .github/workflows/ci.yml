@@ -97,7 +97,7 @@ jobs:
       # count when the floor was last set; it only ratchets up).
       TEST_DATABASE_URL: postgresql+psycopg://postgres:ci-throwaway@localhost:5432/postgres
       REQUIRE_DB: "1"
-      REQUIRE_DB_FLOOR: "65"
+      REQUIRE_DB_FLOOR: "174"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

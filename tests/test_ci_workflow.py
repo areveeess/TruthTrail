@@ -191,8 +191,8 @@ ALEMBIC_ORDER = (
     "alembic upgrade head",
     "alembic check",
 )
-# The collected requires_db count when plan 03-03 set the floor; the floor only ratchets up.
-MIN_DB_FLOOR = 65
+# The collected requires_db count when plan 03-05 raised the floor; it only ratchets up.
+MIN_DB_FLOOR = 174
 
 
 def _postgres_service() -> dict:
