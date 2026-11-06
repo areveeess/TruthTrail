@@ -60,6 +60,71 @@ Copy `.env.example` to `.env` and fill in values. Never commit `.env`. Secrets a
 | `RATE_LIMIT_ANALYZE` | Per-IP limit for `/analyze`, format `N/minute`. Default `10/minute`. An invalid value stops startup. |
 | `RATE_LIMIT_V1` | Per-IP limit for every `/v1` route, format `N/minute`. Default `60/minute`. An invalid value stops startup. |
 
+### Phase 3 configuration
+
+Phase 3 collects real propagation data so the service can flag cascades for human review. Its values are read by the database, collector and job commands; the API process does not read the two operator values. Every policy parameter is optional: unset means the default in `src/truthtrail/core/policy.py`, which equals the value the owner ratified in the source spike (`.planning/phases/03-real-propagation-data/03-SPIKE.md`). Values are deliberately not repeated here. An invalid value stops the command with an error that names the variable, never the value.
+
+Operator values:
+
+| Name | Purpose |
+|---|---|
+| `PSEUDONYM_SECRET` | Secret key of the one-way account and URI pseudonyms. Required by the ingest and erase commands only; never read by the API. Keep it stable: a new key breaks idempotent replay. Never commit it. |
+| `COLLECTOR_CONTACT` | Optional operator contact (email address or URL) added to the collector's User-Agent. At most 200 printable ASCII characters, no line breaks. |
+
+Policy parameters (OD = owner decision of the spike):
+
+| Group | Name | Meaning |
+|---|---|---|
+| Retention | `RETENTION_TEXT_DAYS` | Days a post's text is kept; 0 means text is never written (OD-1). |
+| Retention | `RETENTION_CASCADE_DAYS` | Days a cascade's structure is kept (OD-1). |
+| Retention | `RETENTION_TOMBSTONE_DAYS` | Days a delete tombstone is kept so a replay cannot bring the post back (OD-1). |
+| Retention | `RETENTION_NEWS_DAYS` | Days stored news context is kept. |
+| Retention | `RETENTION_DORMANT_DAYS` | Days after which a cascade without children is removed early; 0 disables the rule (OD-1). |
+| Merge | `CASCADE_MERGE_POLICY` | How duplicate or provisional cascades relate: `none` or `claim_group` (OD-2). |
+| Tracking | `TRACK_ALLOWLIST_FILE` | File of allowlisted publisher domains that seed tracked roots; default is the packaged list (OD-3). |
+| Tracking | `TRACK_MAX_ACTIVE_ROOTS` | Safety cap on roots still accepting children (OD-3). |
+| Tracking | `TRACK_ROOT_TTL_HOURS` | Hours a tracked root accepts children (OD-3). |
+| Tracking | `TRACK_MAX_EVENTS_PER_CASCADE` | Events stored per cascade (OD-3). |
+| Tracking | `TRACK_REQUIRE_LANG` | Language tag a root must declare (OD-3). |
+| Tracking | `TRACK_SEED_CLAIM_URL_MATCH` | `true` also seeds roots whose link matches a stored news claim URL (OD-3 option B). |
+| Tracking | `TRACK_SAMPLE_PER_10K` | Eligible roots kept per 10,000, chosen by a deterministic hash (OD-3; 1 to 10000). |
+| Storage | `STORE_MAX_EVENTS_TOTAL` | Total stored events before ingest stops storing. |
+| Storage | `DB_BUDGET_BYTES` | Database size budget in bytes. |
+| Storage | `DB_STOP_PERCENT` | Percent of the budget at which ingest stops storing. |
+| Ingest | `INGEST_MAX_SECONDS` | Wall-clock bound of one collector run. |
+| Ingest | `INGEST_MAX_EVENTS` | Frames received per run. |
+| Ingest | `INGEST_MAX_STORED` | Rows stored per run. |
+| Ingest | `INGEST_BATCH_ROWS` | Rows per write batch. |
+| Ingest | `INGEST_BATCH_SECONDS` | Seconds before a partial batch is written. |
+| Ingest | `INGEST_REWIND_SECONDS` | Seconds the resume cursor is moved back (at least 30). |
+| Ingest | `INGEST_MAX_RESUME_AGE_HOURS` | Oldest checkpoint resumed; below the 36-hour Jetstream lookback. |
+| Ingest | `INGEST_STALE_AFTER_SECONDS` | Seconds after the last run at which data is reported stale. |
+| Ingest | `INGEST_DIALECT` | Jetstream generation, `v2` or `v1`. |
+| Ingest | `INGEST_HOSTS` | Comma-separated bare Jetstream hostnames, primary first. |
+| News | `NEWS_DAILY_BUDGET` | News provider calls per day. |
+| News | `NEWS_MAX_CALLS_PER_RUN` | News provider calls per job run. |
+| News | `NEWS_MIN_REFRESH_HOURS` | Hours before a topic is fetched again. |
+| News | `NEWS_MAX_TOPICS` | Topics the news job tracks. |
+| API | `MAX_TREE_NODES` | Nodes in one cascade tree response. |
+| API | `PAGE_SIZE_DEFAULT` | Default page size. |
+| API | `PAGE_SIZE_MAX` | Largest page size. |
+| API | `MAX_TIMELINE_BUCKETS` | Buckets in one timeline response. |
+
+Test-only variables (read by `tests/conftest.py`, never by the application, not listed in `.env.example`):
+
+| Name | Purpose |
+|---|---|
+| `TEST_DATABASE_URL` | PostgreSQL server the database tests use. Tests create and drop their own `truthtrail_test_*` databases and never touch `DATABASE_URL`. |
+| `TRUTHTRAIL_PG_BIN` | Directory holding `initdb` and `pg_ctl`; the tests then start a throwaway local cluster. |
+| `REQUIRE_DB` | `1` forbids any fallback: an unreachable `TEST_DATABASE_URL` fails the session. |
+| `REQUIRE_DB_FLOOR` | Minimum number of database tests that must run, so a run without them can never look green. |
+
+Database tests carry the `requires_db` marker and need a real PostgreSQL: `TEST_DATABASE_URL` first, otherwise a throwaway cluster (found through `TRUTHTRAIL_PG_BIN`, the `PATH`, `/usr/lib/postgresql/*/bin` or `C:\Program Files\PostgreSQL\*\bin`), otherwise the session stops with one error naming these remedies. The fast loop without a database is:
+
+```bash
+uv run pytest -m "not requires_db"
+```
+
 ## Setup with uv
 
 Dependency versions are pinned by `uv.lock` (Python 3.13). Install [uv](https://docs.astral.sh/uv/), then, on Linux or macOS:

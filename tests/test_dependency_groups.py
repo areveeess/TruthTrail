@@ -19,8 +19,18 @@ EXPECTED_SERVING = {
     "slowapi": "0.1.10",
     "limits": "5.8.0",
     "cachetools": "7.2.3",
+    # Phase 3 database and collector libraries (D-19, RESEARCH F-12), approved by the owner at
+    # the 03-01 checkpoint together with their four transitive packages.
+    "sqlalchemy": "2.1.5",
+    "psycopg": "3.3.6",
+    "alembic": "1.20.0",
+    "websockets": "17.2",
 }
-PIN = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)==([0-9][A-Za-z0-9.!+_-]*)$")
+PHASE3_SERVING = ("sqlalchemy", "psycopg", "alembic", "websockets")
+# An exact pin, optionally with one bracketed extras group: name[extra,extra]==version.
+PIN = re.compile(
+    r"^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[([A-Za-z0-9._,-]+)\])?==([0-9][A-Za-z0-9.!+_-]*)$"
+)
 
 
 def _pyproject() -> dict:
@@ -56,8 +66,44 @@ def test_serving_dependencies_are_exact_pins() -> None:
     for entry in deps:
         match = PIN.match(entry)
         assert match, f"not an exact pin: {entry!r}"
-        pins[match.group(1)] = match.group(2)
+        pins[match.group(1)] = match.group(3)
     assert pins == EXPECTED_SERVING
+
+
+def _extras(entries: list[str]) -> dict[str, set[str]]:
+    out = {}
+    for entry in entries:
+        match = PIN.match(entry)
+        assert match, f"not an exact pin: {entry!r}"
+        out[match.group(1)] = set(filter(None, (match.group(2) or "").split(",")))
+    return out
+
+
+def test_psycopg_carries_the_binary_extra_and_no_pool_extra() -> None:
+    # RESEARCH F-12: SQLAlchemy's own QueuePool serves the synchronous engine, so psycopg_pool
+    # is not needed (one package fewer to audit). The binary extra ships the libpq wheels.
+    extras = _extras(_pyproject()["project"]["dependencies"])
+    assert extras["psycopg"] == {"binary"}
+    assert all(not found for name, found in extras.items() if name != "psycopg")
+
+
+def test_phase3_libraries_are_serving_dependencies_not_dev() -> None:
+    doc = _pyproject()
+    serving = set(_extras(doc["project"]["dependencies"]))
+    dev = _names(doc["dependency-groups"]["dev"])
+    for name in PHASE3_SERVING:
+        assert name in serving
+        assert name not in dev
+
+
+def test_lock_holds_the_approved_phase3_packages() -> None:
+    packages = {p["name"]: p["version"] for p in _lock()["package"]}
+    for name in (*PHASE3_SERVING, "psycopg-binary", "mako", "markupsafe", "tzdata"):
+        assert name in packages, f"{name} missing from uv.lock"
+    assert "psycopg-pool" not in packages
+    for name in PHASE3_SERVING:
+        assert packages[name] == EXPECTED_SERVING[name]
+    assert packages["psycopg-binary"] == EXPECTED_SERVING["psycopg"]
 
 
 def test_groups_are_split_and_dev_is_the_default() -> None:

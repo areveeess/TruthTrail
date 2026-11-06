@@ -17,6 +17,10 @@ dependencies = [
     "slowapi==0.1.10",
     "limits==5.8.0",
     "cachetools==7.2.3",
+    "sqlalchemy==2.1.5",
+    "psycopg[binary]==3.3.6",
+    "alembic==1.20.0",
+    "websockets==17.2",
 ]
 
 [dependency-groups]

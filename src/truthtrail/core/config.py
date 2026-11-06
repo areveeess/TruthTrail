@@ -18,6 +18,20 @@ class ConfigurationError(RuntimeError):
     """Raised at startup when required configuration is missing or invalid."""
 
 
+def configuration_error(exc: ValidationError) -> ConfigurationError:
+    """Build ``ConfigurationError("Invalid configuration (NAME: rule)")`` from the first error.
+
+    The variable is the field name in upper case. A model-level rule has no field location and
+    carries its own ``NAME: rule`` text. Input values are never included (callers raise the
+    result ``from None`` so the original error, which may hold the value, is not chained).
+    """
+    error = exc.errors(include_input=False, include_url=False, include_context=False)[0]
+    rule = str(error["msg"]).removeprefix("Value error, ")
+    if error["loc"]:
+        rule = f"{str(error['loc'][0]).upper()}: {rule}"
+    return ConfigurationError(f"Invalid configuration ({rule})")
+
+
 # An API key travels in an HTTP header: printable ASCII only, no whitespace of any kind.
 # Settings trims surrounding whitespace first (a pasted newline or space); whitespace inside
 # the key and non-ASCII characters would otherwise make `requests` fail at send time with an
@@ -101,3 +115,69 @@ def get_settings() -> Settings:
         raise ConfigurationError(
             f"Invalid configuration ({problems}). Set the variables listed in .env.example."
         ) from None
+
+
+# Sent inside the collector's User-Agent header (D-07): printable ASCII including the space,
+# no CR, LF or other control characters, so header injection is impossible.
+_HEADER_SAFE_TEXT = re.compile(r"[\x20-\x7e]{1,200}")
+
+
+class DatabaseSettings(BaseSettings):
+    """What every database entrypoint needs (D-27): only ``DATABASE_URL``, required.
+
+    The collector, enrich, purge, migrate and erase commands build on this class, so none of
+    them depends on the API's ``Settings`` (which still requires the news key).
+    """
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_ignore_empty=True,
+        hide_input_in_errors=True,
+    )
+
+    database_url: SecretStr
+
+
+class IngestSettings(DatabaseSettings):
+    """Collector and erase entrypoints: the database plus the pseudonym key (D-17, D-07).
+
+    The API process never builds this class, so it never holds ``PSEUDONYM_SECRET``. The key's
+    length and encoding are validated by the pseudonymiser, not here.
+    """
+
+    pseudonym_secret: SecretStr
+    collector_contact: str | None = None
+
+    @field_validator("collector_contact", mode="before")
+    @classmethod
+    def _header_safe_contact(cls, value: Any) -> Any:
+        """Strip; blank means None; otherwise at most 200 printable ASCII characters."""
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+            if not _HEADER_SAFE_TEXT.fullmatch(value):
+                raise ValueError(
+                    "must be at most 200 printable ASCII characters without line breaks or "
+                    "control characters"
+                )
+        return value
+
+
+def get_database_settings() -> DatabaseSettings:
+    """Build the database settings (not cached) or raise ``ConfigurationError`` naming the
+    variable, never the value."""
+    try:
+        return DatabaseSettings()
+    except ValidationError as exc:
+        raise configuration_error(exc) from None
+
+
+def get_ingest_settings() -> IngestSettings:
+    """Build the ingest settings (not cached) or raise ``ConfigurationError`` naming the
+    variable, never the value."""
+    try:
+        return IngestSettings()
+    except ValidationError as exc:
+        raise configuration_error(exc) from None

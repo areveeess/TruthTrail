@@ -17,7 +17,8 @@ import responses
 from hypothesis import HealthCheck, settings
 
 from truthtrail.core.boot import BootSettings
-from truthtrail.core.config import Settings, get_settings
+from truthtrail.core.config import DatabaseSettings, IngestSettings, Settings, get_settings
+from truthtrail.core.policy import Policy
 
 # Hypothesis profiles (D-15): "ci" is deterministic and database-free; "dev" is lighter.
 # Select with --hypothesis-profile=ci or the HYPOTHESIS_PROFILE environment variable.
@@ -49,7 +50,19 @@ ENV_NAMES = (
     "RATE_LIMIT_V1",
     "TRUST_PROXY_HEADERS",
     "FORWARDED_ALLOW_IPS",
+    # Phase 3 operator values (D-07, D-17)
+    "PSEUDONYM_SECRET",
+    "COLLECTOR_CONTACT",
+    # Test-only database variables: read once per session before the scrub (see pg_cluster)
+    "TEST_DATABASE_URL",
+    "TRUTHTRAIL_PG_BIN",
+    "REQUIRE_DB",
+    "REQUIRE_DB_FLOOR",
+    # Every policy parameter, derived from the model so the list cannot drift (D-03, D-31)
+    *(name.upper() for name in Policy.model_fields),
 )
+# Every settings class: a developer's local .env must never leak into a test.
+SETTINGS_CLASSES = (Settings, BootSettings, Policy, DatabaseSettings, IngestSettings)
 
 
 @pytest.fixture(autouse=True)
@@ -61,8 +74,8 @@ def network_guard(monkeypatch: pytest.MonkeyPatch) -> Iterator[responses.Request
     """
     for name in ENV_NAMES:
         monkeypatch.delenv(name, raising=False)
-    monkeypatch.setitem(Settings.model_config, "env_file", None)
-    monkeypatch.setitem(BootSettings.model_config, "env_file", None)
+    for settings_class in SETTINGS_CLASSES:
+        monkeypatch.setitem(settings_class.model_config, "env_file", None)
     get_settings.cache_clear()
     with responses.RequestsMock(assert_all_requests_are_fired=False) as rs:
         yield rs

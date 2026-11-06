@@ -32,8 +32,9 @@ def _env_names() -> list[str]:
     return names
 
 
-def test_example_environment_file_lists_ten_names() -> None:
-    assert len(_env_names()) == 10
+def test_example_environment_file_lists_forty_six_names() -> None:
+    # 10 Phase 1 and 2 names, PSEUDONYM_SECRET, COLLECTOR_CONTACT and 34 policy names (D-31).
+    assert len(_env_names()) == 46
 
 
 def test_every_environment_name_appears_in_the_readme() -> None:

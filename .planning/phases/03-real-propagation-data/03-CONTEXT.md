@@ -165,7 +165,7 @@ Facts used throughout (verified 2026-10-18 from this container, after the owner 
 | `RETENTION_TEXT_DAYS` / `RETENTION_CASCADE_DAYS` / `RETENTION_TOMBSTONE_DAYS` / `RETENTION_NEWS_DAYS` | 14 / 90 / 7 / 30 | OD-1 (news retention is not an owner item) |
 | `CASCADE_MERGE_POLICY` | `claim_group` | OD-2 |
 | `TRACK_ALLOWLIST_FILE` | `src/truthtrail/data/seed_domains.txt` (<= 60 domains) | OD-3 |
-| `TRACK_MAX_ACTIVE_ROOTS` / `TRACK_ROOT_TTL_HOURS` | 500 / 48 | OD-3 |
+| `TRACK_MAX_ACTIVE_ROOTS` / `TRACK_ROOT_TTL_HOURS` | 2,850 / 48 | OD-3 |
 | `TRACK_MAX_EVENTS_PER_CASCADE` / `STORE_MAX_EVENTS_TOTAL` | 5,000 / 300,000 | OD-3, D-21 |
 | `TRACK_REQUIRE_LANG` / `TRACK_SEED_CLAIM_URL_MATCH` | `en` / false | OD-3 |
 | `DB_BUDGET_BYTES` / stop threshold | 300 MB / 80% | D-21 |
@@ -175,6 +175,8 @@ Facts used throughout (verified 2026-10-18 from this container, after the owner 
 | `INGEST_STALE_AFTER_SECONDS` | 21,600 | D-24 (cadence is a Phase 6 choice) |
 | `NEWS_DAILY_BUDGET` / `NEWS_MAX_CALLS_PER_RUN` / `NEWS_MIN_REFRESH_HOURS` / `NEWS_MAX_TOPICS` | 60 / 10 / 12 / 20 | D-26 |
 | `MAX_TREE_NODES` / page size default and maximum / `MAX_TIMELINE_BUCKETS` | 5,000 / 25 and 100 / 500 | D-23 |
+
+Ratified 2026-11-06: values in this table equal core/policy.py and 03-SPIKE.md.
 
 ### Claude's Discretion
 Exact module, file and class names inside the new packages; the migration revision naming; the token alphabet details of D-17 within the stated length and no-hex-lookalike rules; the cursor encoding of keyset pagination; the choice of the allowlist's entries (reviewed by the owner at the spike checkpoint); the exact error-code strings beyond those named; how the socket guard is written; the shape of `ingest_runs.counters`; the optional operator `erase` command; and the slicing of plans. Indicative slicing, to be confirmed by the planner: 03-01 spike and fixture (DATA-01, ends at the owner checkpoint); 03-02 database foundation: dependencies, settings, `db/`, Alembic baseline, test-Postgres fixture and CI service, `database` readiness check (DATA-02); 03-03 pseudonymiser, normaliser, selection policy, `ReplaySource` (DATA-03, pure and fixture-driven); 03-04 writer, run loop, `JetstreamSource` against the loopback server, checkpoint, idempotency, deletes, bounds, CLI (DATA-03); 03-05 enrich, property tests, purge (DATA-04); 03-06 `/v1` read API (DATA-05); 03-07 news job and `/v1/news` (DATA-06); 03-08 retire `/analyze`, settings split, golden update, README and phase gate. Plans 03-02 onward execute only after D-02.
