@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 3
 current_phase_name: Real Propagation Data
-current_plan: 03-05 (next); 03-01 to 03-04 complete
+current_plan: 03-06 (next); 03-01 to 03-05 complete
 status: executing
-stopped_at: Completed 03-04-PLAN.md
-last_updated: "2026-11-06T10:07:05.453Z"
+stopped_at: Completed 03-05-PLAN.md
+last_updated: "2026-11-06T18:47:03.595Z"
 last_activity: 2026-11-06
-last_activity_desc: Plan 03-04 executed (keyed pseudonymiser, Jetstream dialect, normaliser with D-12 edges, selection moved into the package, ReplaySource, import rules)
-state_head: 31b3b29f61cf673c2f69aacc59ce2d9b01e59539
+last_activity_desc: Plan 03-05 executed (collector writer, JetstreamSource, bounded run loop, ingest CLI with erase, kill-and-resume proof, live smoke 38 real cascades)
+state_head: bbdd018f5d8bf8634f322abb64faf4182972a8c8
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 22
+  completed_plans: 23
 milestone_name: Lean MVP
 ---
 
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 3 — Real Propagation Data
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 12
-Status: 03-01 to 03-04 complete; executing 03-05 next
-Last activity: 2026-11-06 — plan 03-04 executed (ingest layer: pseudonymiser, dialect, normaliser, selection, replay source)
+Status: 03-01 to 03-05 complete; executing 03-06 next
+Last activity: 2026-11-06 — plan 03-05 executed (bounded Jetstream collector: writer, live source, run loop, CLI, erase; DATA-03 complete)
 
 Progress: [███░░░░░░░] 33%
 
@@ -81,6 +81,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P02 | 22min | 3 tasks | 22 files |
 | Phase 03 P03 | 34min | 3 tasks | 22 files |
 | Phase 03 P04 | 27min | 4 tasks | 23 files |
+| Phase 03 P05 | 95min | 3 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,11 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-04: Sources never yield Dropped results; drops go to the caller's DropCounter by reason
 - [Phase 03]: 03-04: The recorded fixture now ships in the image (.dockerignore line removed) because ReplaySource is runtime code that reads it; ReplaySource hashes the data once and iterates those bytes
 - [Phase 03]: 03-04: find_order_violations leaves out events on a parent cycle; the Keyer holds the HMAC key schedule, not the raw secret; FAKE_PSEUDONYM_SECRET is runtime-generated per session
+- [Phase 03]: 03-05: account-wide tombstones remove only rows observed at or before the action's stream time (replay idempotency)
+- [Phase 03]: 03-05: overflow tallied by cascades.overflow_through_us high-water mark; out-of-order overflow counted as overflow_uncounted (lower bound)
+- [Phase 03]: 03-05: CLI exit codes 0/2/3/4/5/6; stop reason stored as counter stop:<reason>; run_ingest catches KeyboardInterrupt and finalises as interrupted
+- [Phase 03]: 03-05: CI REQUIRE_DB_FLOOR raised 65 -> 174
+- [Phase 03]: 03-05: a reply without a usable parent is refused as reply_without_parent (no invented edge)
 
 ### Pending Todos
 
@@ -153,8 +159,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T10:07:05.350Z
-Stopped at: Completed 03-04-PLAN.md
+Last session: 2026-11-06T18:47:03.501Z
+Stopped at: Completed 03-05-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).

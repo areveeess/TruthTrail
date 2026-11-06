@@ -125,7 +125,7 @@ Plans:
 - [x] 03-02-PLAN.md
 - [x] 03-03-PLAN.md
 - [x] 03-04-PLAN.md
-- [ ] 03-05-PLAN.md
+- [x] 03-05-PLAN.md
 - [ ] 03-06-PLAN.md
 - [ ] 03-07-PLAN.md
 - [ ] 03-08-PLAN.md
@@ -218,7 +218,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 (Phases 3 and 4 may 
 |-------|----------------|--------|-----------|
 | 1. Secure & Honest Foundation | 6/6 | Complete    | 2026-10-17 |
 | 2. Engineering Baseline | 12/12 | Complete    | 2026-10-18 |
-| 3. Real Propagation Data | 4/12 | In Progress | - |
+| 3. Real Propagation Data | 5/12 | In Progress | - |
 | 3.1. Reddit as a Second Source (INSERTED) | 0/TBD | Not started | - |
 | 4. Baseline Detection & Evaluation | 0/TBD | Not started | - |
 | 5. Dashboard | 0/TBD | Not started | - |
