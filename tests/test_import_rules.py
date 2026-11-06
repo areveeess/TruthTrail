@@ -26,11 +26,13 @@ MIN_FILES = 35
 @dataclass(frozen=True)
 class Rule:
     """Modules matching ``within`` (a package prefix or exact module) must import none of
-    ``forbidden`` (each a module or a package prefix)."""
+    ``forbidden`` (each a module or a package prefix); modules listed in ``allowed`` (exact
+    names) are the deliberate exceptions."""
 
     name: str
     within: tuple[str, ...]
     forbidden: tuple[str, ...]
+    allowed: tuple[str, ...] = ()
 
 
 PURE_INGEST = (
@@ -68,6 +70,12 @@ FORBIDDEN: tuple[Rule, ...] = (
         "pure ingest modules import nothing from db",
         PURE_INGEST,
         ("truthtrail.db",),
+    ),
+    Rule(
+        "only the live Jetstream source imports websockets (plan 03-05)",
+        ("truthtrail",),
+        ("websockets",),
+        allowed=("truthtrail.ingest.source",),
     ),
 )
 
@@ -127,7 +135,7 @@ def violations(source: str, module: str, *, is_package: bool = False) -> list[st
     imported = imported_modules(source, module, is_package=is_package)
     hits: list[str] = []
     for rule in FORBIDDEN:
-        if not _matches(module, rule.within):
+        if not _matches(module, rule.within) or module in rule.allowed:
             continue
         hits.extend(
             f"{rule.name}: {name}" for name in sorted(imported) if _matches(name, rule.forbidden)
@@ -202,6 +210,13 @@ def test_every_rule_governs_at_least_one_existing_module() -> None:
             "truthtrail.db.engine",
         ),
         ("truthtrail.ingest.pseudonym", "import truthtrail.db\n", "truthtrail.db"),
+        ("truthtrail.ingest.run", "import websockets\n", "websockets"),
+        (
+            "truthtrail.ingest.writer",
+            "from websockets.asyncio.client import connect\n",
+            "websockets.asyncio.client",
+        ),
+        ("truthtrail.api.app", "from websockets import exceptions\n", "websockets"),
     ],
 )
 def test_the_walker_flags_each_rule(module: str, source: str, forbidden: str) -> None:
@@ -231,6 +246,8 @@ def test_allowed_imports_are_not_flagged() -> None:
     assert violations("from truthtrail.api import app\n", "truthtrail.services.gnews") == []
     assert violations("import truthtrail.ingestion_notes\n", "truthtrail.api.v1") == []
     assert violations("from truthtrail.core import cascade\n", "truthtrail.api.app") == []
+    assert violations("import websockets\n", "truthtrail.ingest.source") == []
+    assert violations("import websocketsx\n", "truthtrail.ingest.run") == []
 
 
 def test_importing_the_app_loads_no_ingest_module_and_no_websockets(
