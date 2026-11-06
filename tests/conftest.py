@@ -634,3 +634,226 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         reporter.write_line(message, red=True, bold=True)
     if session.exitstatus == pytest.ExitCode.OK:
         session.exitstatus = pytest.ExitCode.TESTS_FAILED
+
+
+# --- Collector pipeline helpers (plan 03-05, D-14, D-15, SC3) ---------------------------------
+# Explicit TEST policy values. The selection fields come from the manifest's selection_policy
+# block (``fixture_selection_policy()``), so a fixture replay reproduces the cut-time yield; the
+# allowlist is the manifest's domain list materialised by ``fixture_allowlist_file`` (never the
+# editable seed_domains.txt). The caps are raised above the fixture's own size, and the
+# retention values are arbitrary positive test numbers. Nothing here reads a Policy default.
+TEST_RETENTION_TEXT_DAYS = 7
+TEST_RETENTION_CASCADE_DAYS = 30
+TEST_RETENTION_TOMBSTONE_DAYS = 3
+TEST_REWIND_SECONDS = 30
+# The per-cascade cap the overflow, idempotency and crash-resume tests share: small enough that
+# the largest fixture cascades overflow (each test asserts that it really does).
+TEST_SMALL_CASCADE_CAP = 4
+
+
+def fixture_frame_count() -> int:
+    return sum(1 for _line in recorded_lines())
+
+
+def make_test_policy(allowlist_file: Path, **overrides: Any) -> Policy:
+    """A Policy built from explicit test values only; ``overrides`` replace single fields."""
+    block = fixture_selection_policy()
+    frames = fixture_frame_count()
+    values: dict[str, Any] = {
+        "track_sample_per_10k": block["sample_per_10k"],
+        "track_allowlist_file": allowlist_file,
+        "track_require_lang": block["require_lang"],
+        "track_root_ttl_hours": block["root_ttl_hours"],
+        "track_max_events_per_cascade": block["max_events_per_cascade"],
+        "track_max_active_roots": frames * 10,
+        "store_max_events_total": frames * 10,
+        "track_seed_claim_url_match": False,
+        "retention_text_days": TEST_RETENTION_TEXT_DAYS,
+        "retention_cascade_days": TEST_RETENTION_CASCADE_DAYS,
+        "retention_tombstone_days": TEST_RETENTION_TOMBSTONE_DAYS,
+        "ingest_rewind_seconds": TEST_REWIND_SECONDS,
+    }
+    values.update(overrides)
+    return Policy(**values)
+
+
+@pytest.fixture
+def explicit_policy(fixture_allowlist_file: Path) -> Callable[..., Policy]:
+    """Factory of explicit test policies (see ``make_test_policy``)."""
+
+    def build(**overrides: Any) -> Policy:
+        return make_test_policy(fixture_allowlist_file, **overrides)
+
+    return build
+
+
+class ListSource:
+    """An ``EventSource`` test double over a list of ``SourceItem`` values (replay semantics:
+    items whose cursor is before the resume cursor are skipped, control items pass)."""
+
+    def __init__(self, items: list[Any], *, mode: str = "replay", host: str = "list") -> None:
+        self._items = list(items)
+        self._mode = mode
+        self._host = host
+
+    @property
+    def mode(self) -> Any:
+        return self._mode
+
+    @property
+    def dialect(self) -> Any:
+        return "v2"
+
+    @property
+    def host(self) -> str:
+        return self._host
+
+    async def items(self, resume_cursor_us: int | None, drops: Any = None) -> Any:
+        for item in self._items:
+            cursor = item.cursor_us
+            if resume_cursor_us is not None and cursor is not None and cursor < resume_cursor_us:
+                continue
+            yield item
+
+
+def fixture_items(keyer: Any, resume_cursor_us: int | None = None) -> list[Any]:
+    """Every item ReplaySource yields for the packaged fixture from ``resume_cursor_us``."""
+    import asyncio
+
+    from truthtrail.ingest.source import DEFAULT_MANIFEST, ReplaySource
+
+    async def collect() -> list[Any]:
+        source = ReplaySource(DEFAULT_MANIFEST, keyer)
+        return [item async for item in source.items(resume_cursor_us)]
+
+    return asyncio.run(collect())
+
+
+class PipelineRun:
+    """Outcome of ``run_pipeline``: outcome counts, flush results and the index used."""
+
+    def __init__(
+        self, outcomes: Any, results: list[Any], index: Any, decider: Any, per_item: list[Any]
+    ) -> None:
+        self.outcomes = outcomes
+        self.results = results
+        self.index = index
+        self.decider = decider
+        self.per_item = per_item  # (result, outcome) in processing order
+
+    def keys_with(self, outcome: str) -> list[str]:
+        return [r.uri_key for r, o in self.per_item if o == outcome and hasattr(r, "edge_kind")]
+
+    @property
+    def inserted(self) -> int:
+        return sum(r.inserted for r in self.results)
+
+    @property
+    def duplicates(self) -> int:
+        return sum(r.duplicates for r in self.results)
+
+    @property
+    def overflow_counted(self) -> int:
+        return sum(r.overflow_counted for r in self.results)
+
+
+def run_pipeline(
+    engine: Any,
+    policy: Policy,
+    items: list[Any],
+    *,
+    since_us: int | None = None,
+    batch_rows: int = 100,
+    source: str = "test-replay",
+    known_claim_urls: Any = frozenset(),
+    stop_after: int | None = None,
+) -> PipelineRun:
+    """Items -> Decider -> writer, synchronously, the way the run loop does it: the index is
+    loaded first (``since_us`` None loads every cascade), batches flush at ``batch_rows`` rows,
+    the index commits and expires only after a flush. ``stop_after`` stops after that many
+    items (an in-process stop; the final partial batch is flushed)."""
+    from collections import Counter
+
+    from truthtrail.ingest import selection
+    from truthtrail.ingest.writer import Batch, Decider, TrackedIndex, flush
+
+    index = TrackedIndex()
+    with engine.connect() as connection:
+        index.load(connection, since_us)
+    decider = Decider(
+        policy, index, selection.load_allowlist(policy.track_allowlist_file), known_claim_urls
+    )
+    outcomes: Counter[str] = Counter()
+    results: list[Any] = []
+    per_item: list[Any] = []
+    batch = Batch()
+
+    def commit() -> None:
+        nonlocal batch
+        result = flush(engine, batch, source=source, dialect="v2", host="recorded")
+        index.commit(result, batch)
+        outcomes.update(batch.counters)
+        if batch.max_time_us is not None:
+            index.expire(batch.max_time_us)
+        results.append(result)
+        batch = Batch()
+
+    for number, item in enumerate(items, start=1):
+        batch.note_cursor(item.cursor_us)
+        outcome = decider.process(item.result, batch)
+        outcomes[outcome] += 1
+        per_item.append((item.result, outcome))
+        if batch.rows >= batch_rows:
+            commit()
+        if stop_after is not None and number >= stop_after:
+            break
+    commit()
+    return PipelineRun(outcomes, results, index, decider, per_item)
+
+
+PROJECTION_QUERIES = {
+    "events": (
+        "SELECT e.uri, e.edge_kind, e.inferred, e.parent_uri, e.reply_root_uri, e.quoted_uri,"
+        " e.via_uri, e.parent_state, c.root_uri, a.pseudonym, e.observed_at, e.occurred_at,"
+        " e.text, cl.claim_key, e.lang, e.deleted_at"
+        " FROM events e LEFT JOIN cascades c ON c.id = e.cascade_id"
+        " LEFT JOIN accounts a ON a.id = e.account_id LEFT JOIN claims cl ON cl.id = e.claim_id"
+        " ORDER BY e.uri"
+    ),
+    "cascades": (
+        "SELECT c.root_uri, cl.claim_key, c.tracking_ends_at, c.first_event_at,"
+        " c.last_event_at, c.overflow_count, c.overflow_through_us, c.root_deleted_at"
+        " FROM cascades c LEFT JOIN claims cl ON cl.id = c.claim_id ORDER BY c.root_uri"
+    ),
+    "accounts": "SELECT pseudonym, first_observed_at FROM accounts ORDER BY pseudonym",
+    "claims": (
+        "SELECT claim_key, kind, text, text_hash, url_canonical, link_domain"
+        " FROM claims ORDER BY claim_key"
+    ),
+    "ingest_checkpoints": (
+        "SELECT source, dialect, host, cursor_time_us FROM ingest_checkpoints ORDER BY source"
+    ),
+}
+COUNTED_TABLES = ("events", "cascades", "accounts", "claims", "ingest_checkpoints")
+
+
+def canonical_projection(engine: Any) -> dict[str, list[tuple[Any, ...]]]:
+    """Every table by natural key (no surrogate ids), independent of insertion order."""
+    from sqlalchemy import text
+
+    with engine.connect() as connection:
+        return {
+            name: [tuple(row) for row in connection.execute(text(query))]
+            for name, query in PROJECTION_QUERIES.items()
+        }
+
+
+def row_counts(engine: Any) -> dict[str, int]:
+    """Row count per collector table."""
+    from sqlalchemy import text
+
+    with engine.connect() as connection:
+        return {
+            name: int(connection.execute(text("SELECT count(*) FROM " + name)).scalar_one())
+            for name in COUNTED_TABLES
+        }
