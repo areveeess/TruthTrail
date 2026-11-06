@@ -16,6 +16,7 @@ pretending to be ready. Apps without a database (tests, ``DEMO_MODE``) register 
 import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -26,12 +27,16 @@ from truthtrail.api import analyze
 from truthtrail.api.analyze import build_analyze_router
 from truthtrail.api.cache import AnalyzeCache
 from truthtrail.api.catchall import CatchAllMiddleware
+from truthtrail.api.db_errors import register_db_error_handlers
 from truthtrail.api.health import build_health_router
 from truthtrail.api.limits import LimitedRouter, UpstreamBudget, build_limiter
 from truthtrail.api.problems import register_problem_handlers
 from truthtrail.api.v1 import build_v1_router
+from truthtrail.api.v1_cache import V1Cache
+from truthtrail.api.v1_deps import utc_now
 from truthtrail.core.boot import get_boot_settings
 from truthtrail.core.config import get_settings
+from truthtrail.core.policy import get_policy
 from truthtrail.core.readiness import ReadinessRegistry
 from truthtrail.db.engine import create_db_engine
 from truthtrail.db.health import database_ready
@@ -96,13 +101,15 @@ def create_app(
     engine: Engine | None = None,
     cache_timer: Callable[[], float] | None = None,
     v1_registrars: Sequence[Callable[[LimitedRouter], None]] | None = None,
+    clock: Callable[[], datetime] | None = None,
 ) -> FastAPI:
     """Build a new application; two calls never share routes or state.
 
     ``engine`` injects a database engine that the app uses but never disposes (its creator
-    does). ``cache_timer`` replaces the monotonic clock of the ``/analyze`` cache (used by tests
-    so expiry never sleeps). ``v1_registrars`` replaces the default ``V1_REGISTRARS`` list
-    (used by tests).
+    does). ``cache_timer`` replaces the monotonic clock of the ``/analyze`` and ``/v1`` caches
+    (used by tests so expiry never sleeps). ``v1_registrars`` replaces the default
+    ``V1_REGISTRARS`` list (used by tests). ``clock`` replaces the UTC wall clock the ``/v1``
+    provenance uses for staleness and ingest lag (tests control it).
     """
     app = FastAPI(
         title="TruthTrail API",
@@ -111,7 +118,12 @@ def create_app(
         lifespan=lifespan,
     )
     register_problem_handlers(app)
+    register_db_error_handlers(app)
     boot = get_boot_settings()
+    # Policy at construction (D-03): an invalid value stops here with a ConfigurationError that
+    # names the variable, like BootSettings; the /v1 bounds and the stale threshold read it.
+    app.state.policy = get_policy()
+    app.state.clock = clock or utc_now
     app.state.engine = engine
     app.state.engine_owned = False
     registry = ReadinessRegistry()
@@ -123,6 +135,7 @@ def create_app(
     limiter = build_limiter()
     app.state.limiter = limiter
     app.state.analyze_cache = AnalyzeCache(timer=cache_timer or time.monotonic)
+    app.state.v1_cache = V1Cache(timer=cache_timer or time.monotonic)
     app.state.upstream_budget = UpstreamBudget()
     app.include_router(build_analyze_router(limiter))
     app.include_router(build_v1_router(limiter, v1_registrars))

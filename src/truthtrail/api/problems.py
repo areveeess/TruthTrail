@@ -72,6 +72,26 @@ PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
     ),
 }
 
+# The /v1 operations (D-23): 422, 429, 500 and 503 only. No 502, because /v1 never calls an
+# upstream; its 503 is the database (api/db_errors.py), with the same Retry-After header schema.
+V1_PROBLEM_RESPONSES: dict[int | str, dict[str, Any]] = {
+    422: PROBLEM_RESPONSES[422],
+    429: PROBLEM_RESPONSES[429],
+    500: _problem_declaration(
+        "Configuration error (not_configured: this process has no database) or unexpected "
+        "error (problem details)."
+    ),
+    503: _problem_declaration(
+        "The database is unavailable or did not answer in time; see Retry-After (problem details).",
+        headers={
+            "Retry-After": {
+                "description": "Seconds to wait before retrying.",
+                "schema": {"type": "integer"},
+            }
+        },
+    ),
+}
+
 
 # The /ready 503 (a failed dependency check) never sends Retry-After, so unlike the provider
 # 503 above it declares no headers.

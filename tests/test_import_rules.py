@@ -48,6 +48,10 @@ PURE_INGEST = (
 PURE_ENRICH = ("truthtrail.enrich.resolve", "truthtrail.enrich.rollup")
 PURE_ENRICH_ALLOWED = ("truthtrail.core", *PURE_ENRICH)
 
+# The ONE named exemption from the api news rule: the legacy /analyze router, retired in plan
+# 03-11; plan 03-12 empties this tuple. test_the_api_news_exemption_cannot_grow pins it.
+API_NEWS_EXEMPT = ("truthtrail.api.analyze",)
+
 FORBIDDEN: tuple[Rule, ...] = (
     Rule(
         "core imports no higher layer",
@@ -71,6 +75,17 @@ FORBIDDEN: tuple[Rule, ...] = (
         "api never imports ingest (the API process never holds the pseudonymiser)",
         ("truthtrail.api",),
         ("truthtrail.ingest",),
+    ),
+    Rule(
+        "api never imports jobs, enrich or websockets (plan 03-07, D-31)",
+        ("truthtrail.api",),
+        ("truthtrail.jobs", "truthtrail.enrich", "websockets"),
+    ),
+    Rule(
+        "api never reaches the news client (plan 03-07, D-26, D-31)",
+        ("truthtrail.api",),
+        ("truthtrail.services.gnews", "requests"),
+        allowed=API_NEWS_EXEMPT,
     ),
     Rule(
         "pure ingest modules import nothing from db",
@@ -267,6 +282,20 @@ def test_every_rule_governs_at_least_one_existing_module() -> None:
             "from truthtrail.enrich.apply import x\n",
             "truthtrail.enrich.apply",
         ),
+        ("truthtrail.api.v1_cascades", "from truthtrail.jobs import news\n", "truthtrail.jobs"),
+        (
+            "truthtrail.api.v1_stats",
+            "from truthtrail.enrich.resolve import resolve_cascade\n",
+            "truthtrail.enrich.resolve",
+        ),
+        ("truthtrail.api.v1_deps", "import websockets\n", "websockets"),
+        (
+            "truthtrail.api.v1_cascades",
+            "from truthtrail.services.gnews import fetch_news\n",
+            "truthtrail.services.gnews",
+        ),
+        ("truthtrail.api.app", "import requests\n", "requests"),
+        ("truthtrail.api.db_errors", "from ..services import gnews\n", "truthtrail.services.gnews"),
     ],
 )
 def test_the_walker_flags_each_rule(module: str, source: str, forbidden: str) -> None:
@@ -298,6 +327,26 @@ def test_allowed_imports_are_not_flagged() -> None:
     assert violations("from truthtrail.core import cascade\n", "truthtrail.api.app") == []
     assert violations("import websockets\n", "truthtrail.ingest.source") == []
     assert violations("import websocketsx\n", "truthtrail.ingest.run") == []
+
+
+def test_the_api_news_exemption_cannot_grow() -> None:
+    """Only the legacy /analyze router may import the news client until plan 03-12."""
+    exempt = {
+        name for rule in FORBIDDEN for name in rule.allowed if _matches(name, ("truthtrail.api",))
+    }
+    assert exempt == {"truthtrail.api.analyze"}
+    news_rule = next(rule for rule in FORBIDDEN if "news client" in rule.name)
+    assert news_rule.allowed == API_NEWS_EXEMPT == ("truthtrail.api.analyze",)
+
+
+def test_the_exemption_is_only_for_the_news_rule() -> None:
+    # The exempt module is still bound by every other api rule.
+    hits = violations("from truthtrail.enrich import apply\n", "truthtrail.api.analyze")
+    assert any("enrich" in hit for hit in hits), hits
+    assert (
+        violations("from truthtrail.services.gnews import fetch_news\n", "truthtrail.api.analyze")
+        == []
+    )
 
 
 def non_pure_enrich_imports(source: str, module: str) -> list[str]:
