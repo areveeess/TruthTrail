@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 3
 current_phase_name: Real Propagation Data
-current_plan: 03-07 (next); 03-01 to 03-06 complete
+current_plan: 03-08 (next); 03-01 to 03-07 complete
 status: executing
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-11-06T19:25:37.086Z"
+stopped_at: Completed 03-07-PLAN.md
+last_updated: "2026-11-06T20:05:29.509Z"
 last_activity: 2026-11-06
-last_activity_desc: Plan 03-06 executed (pure cascade resolver with Hypothesis order-independence proof and three caught mutants, per-cascade enrich write-back, retention purge, enrich/purge CLI)
-state_head: 0551c7f675b902bf7a41b38098053c885c477da7
+last_activity_desc: Plan 03-07 executed (/v1 read API - cascades list with keyset cursor, detail, capped canonical tree, date_bin timeline, rollup-only stats; V1Meta provenance; 503 database_unavailable/database_timeout contract with outage proof)
+state_head: efaea2061eec6de3392be0a297571e10b97f09b9
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 24
+  completed_plans: 25
 milestone_name: Lean MVP
 ---
 
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 3 — Real Propagation Data
-Current Plan: 7
+Current Plan: 8
 Total Plans in Phase: 12
-Status: 03-01 to 03-06 complete; executing 03-07 next
-Last activity: 2026-11-06 — plan 03-06 executed (deterministic enrich and the retention purge; DATA-04 complete)
+Status: 03-01 to 03-07 complete; executing 03-08 next
+Last activity: 2026-11-06 — plan 03-07 executed (the /v1 read API and the database error contract; DATA-05 complete)
 
 Progress: [███░░░░░░░] 33%
 
@@ -83,6 +83,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P04 | 27min | 4 tasks | 23 files |
 | Phase 03 P05 | 95min | 3 tasks | 20 files |
 | Phase 03 P06 | 28min | 3 tasks | 16 files |
+| Phase 03 P07 | 30min | 3 tasks | 22 files |
 
 ## Accumulated Context
 
@@ -142,6 +143,11 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-06: enrich as_of defaults to the checkpoint stream time (data_as_of); purge CLI as_of defaults to the wall clock (retention is real time)
 - [Phase 03]: 03-06: counters exclude tombstones, structure and max_depth keep them; invalid_count only in the result and log line; ROLLUP_VERSION 1
 - [Phase 03]: 03-06: CI REQUIRE_DB_FLOOR raised 174 -> 217
+- [Phase 3]: 03-07: /v1 handlers open the read-only connection inside the body (read_connection), after the limiter; a 429 never takes a pool connection
+- [Phase 3]: 03-07: parameter 422s are rejected before the limiter (uncounted, no database); handler-level 422s (claim_id under merge policy none, cursor of another sort) are counted
+- [Phase 3]: 03-07: cursor = base64url JSON [sort, value, id]; tree node ids are events.id (no keyed URI exposed); unknown cascade id is the generic undeclared 404
+- [Phase 3]: 03-07: ingest_gaps counts gaps overlapping [first_event_at, max(last_event_at, tracking_ends_at)]; stats events_by_kind.root = non-deleted roots
+- [Phase 3]: 03-07: CI REQUIRE_DB_FLOOR raised 217 -> 311
 
 ### Pending Todos
 
@@ -165,8 +171,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T19:25:36.993Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-11-06T20:05:29.406Z
+Stopped at: Completed 03-07-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
