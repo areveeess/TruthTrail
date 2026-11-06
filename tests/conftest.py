@@ -430,15 +430,17 @@ def empty_database(pg_admin_url: str) -> Iterator[EmptyDatabases]:
 
 @pytest.fixture
 def make_engine(request: pytest.FixtureRequest) -> Callable[..., Any]:
-    """Build an engine and register ``dispose`` as a finalizer (RESEARCH F-09).
+    """Build an engine with ``create_db_engine`` and register ``dispose`` as a finalizer.
 
     ``filterwarnings = error`` turns a garbage-collected engine with open pooled connections
-    into a failing test, so every engine a test builds goes through this factory.
+    into a failing test (RESEARCH F-09), so every engine a test builds goes through this
+    factory. Keyword arguments (``role``, ``pool_size``, ``max_overflow``,
+    ``statement_timeout_ms``) are passed through.
     """
-    from sqlalchemy import create_engine
+    from truthtrail.db.engine import create_db_engine
 
     def make(url: str, **kwargs: Any) -> Any:
-        engine = create_engine(url, **kwargs)
+        engine = create_db_engine(url, **kwargs)
         request.addfinalizer(engine.dispose)
         return engine
 
