@@ -3,18 +3,18 @@ gsd_state_version: "1.0"
 milestone: v1.0
 current_phase: 3
 current_phase_name: Real Propagation Data
-current_plan: 03-06 (next); 03-01 to 03-05 complete
+current_plan: 03-07 (next); 03-01 to 03-06 complete
 status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-11-06T18:47:03.595Z"
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-11-06T19:25:37.086Z"
 last_activity: 2026-11-06
-last_activity_desc: Plan 03-05 executed (collector writer, JetstreamSource, bounded run loop, ingest CLI with erase, kill-and-resume proof, live smoke 38 real cascades)
-state_head: bbdd018f5d8bf8634f322abb64faf4182972a8c8
+last_activity_desc: Plan 03-06 executed (pure cascade resolver with Hypothesis order-independence proof and three caught mutants, per-cascade enrich write-back, retention purge, enrich/purge CLI)
+state_head: 0551c7f675b902bf7a41b38098053c885c477da7
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 30
-  completed_plans: 23
+  completed_plans: 24
 milestone_name: Lean MVP
 ---
 
@@ -30,10 +30,10 @@ See: .planning/PROJECT.md (updated 2026-10-11)
 ## Current Position
 
 Phase: 3 — Real Propagation Data
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 12
-Status: 03-01 to 03-05 complete; executing 03-06 next
-Last activity: 2026-11-06 — plan 03-05 executed (bounded Jetstream collector: writer, live source, run loop, CLI, erase; DATA-03 complete)
+Status: 03-01 to 03-06 complete; executing 03-07 next
+Last activity: 2026-11-06 — plan 03-06 executed (deterministic enrich and the retention purge; DATA-04 complete)
 
 Progress: [███░░░░░░░] 33%
 
@@ -82,6 +82,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 03 P03 | 34min | 3 tasks | 22 files |
 | Phase 03 P04 | 27min | 4 tasks | 23 files |
 | Phase 03 P05 | 95min | 3 tasks | 20 files |
+| Phase 03 P06 | 28min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,11 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-05: CLI exit codes 0/2/3/4/5/6; stop reason stored as counter stop:<reason>; run_ingest catches KeyboardInterrupt and finalises as interrupted
 - [Phase 03]: 03-05: CI REQUIRE_DB_FLOOR raised 65 -> 174
 - [Phase 03]: 03-05: a reply without a usable parent is refused as reply_without_parent (no invented edge)
+- [Phase 03]: 03-06: the collector's dirty mark is unconditional (mark_cascades_dirty); the old enrich_dirty IS FALSE filter lost the mark during an enrich transaction
+- [Phase 03]: 03-06: enrich locks changed event rows NOWAIT, so an open collector batch is contention (cascade stays dirty), never a deadlock
+- [Phase 03]: 03-06: enrich as_of defaults to the checkpoint stream time (data_as_of); purge CLI as_of defaults to the wall clock (retention is real time)
+- [Phase 03]: 03-06: counters exclude tombstones, structure and max_depth keep them; invalid_count only in the result and log line; ROLLUP_VERSION 1
+- [Phase 03]: 03-06: CI REQUIRE_DB_FLOOR raised 174 -> 217
 
 ### Pending Todos
 
@@ -159,8 +165,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T18:47:03.501Z
-Stopped at: Completed 03-05-PLAN.md
+Last session: 2026-11-06T19:25:36.993Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None
 
 See `.planning/HANDOFF.md` for the full session handoff (constraints, workflow pattern, Phase 2 notes).
