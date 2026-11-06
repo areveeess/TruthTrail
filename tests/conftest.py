@@ -857,3 +857,155 @@ def row_counts(engine: Any) -> dict[str, int]:
             name: int(connection.execute(text("SELECT count(*) FROM " + name)).scalar_one())
             for name in COUNTED_TABLES
         }
+
+
+# --- Enrich helpers (plan 03-06, D-14, D-22, SC4) --------------------------------------------
+# A constructed row: (uri, edge_kind, parent_uri, observed_at, account_pseudonym, deleted).
+# Keys are short test strings that fit the keyed-column widths (uri 20, pseudonym 16).
+ForestRow = tuple[str, str, "str | None", Any, "str | None", bool]
+TOMBSTONE_DELAY_SECONDS = 60
+
+
+def insert_forest(
+    engine: Any,
+    rows: list[Any],
+    *,
+    root_uri: str,
+    order: list[int] | None = None,
+    id_base: int = 1000,
+    tracking_ends_at: Any = None,
+) -> int:
+    """Insert constructed rows by direct parameterised SQL into the cascade of ``root_uri``
+    (created dirty when missing) in ``order`` (a permutation of row indexes, default as given),
+    with explicit surrogate ids ``id_base + position``, so two permutations get different ids
+    for the same uri. A deleted row is a minimal tombstone (D-16). Returns the cascade id."""
+    from datetime import timedelta
+
+    from sqlalchemy import text
+
+    sequence = list(range(len(rows))) if order is None else list(order)
+    first = min((r[3] for r in rows), default=None)
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO cascades (root_uri, tracking_ends_at, first_event_at, last_event_at)"
+                " VALUES (:root, :ends, :first, :first) ON CONFLICT (root_uri) DO NOTHING"
+            ),
+            {
+                "root": root_uri,
+                "ends": tracking_ends_at or (first + timedelta(hours=48)),
+                "first": first,
+            },
+        )
+        cascade_id = int(
+            connection.execute(
+                text("SELECT id FROM cascades WHERE root_uri = :root"), {"root": root_uri}
+            ).scalar_one()
+        )
+        for position, index in enumerate(sequence):
+            uri, kind, parent, observed, account, deleted = rows[index]
+            account_id = None
+            if account is not None and not deleted:
+                account_id = connection.execute(
+                    text(
+                        "INSERT INTO accounts (pseudonym, first_observed_at) VALUES (:p, :t)"
+                        " ON CONFLICT (pseudonym) DO UPDATE SET pseudonym = EXCLUDED.pseudonym"
+                        " RETURNING id"
+                    ),
+                    {"p": account, "t": observed},
+                ).scalar_one()
+            connection.execute(
+                text(
+                    "INSERT INTO events (id, uri, edge_kind, inferred, parent_uri, parent_state,"
+                    " cascade_id, account_id, observed_at, deleted_at)"
+                    " VALUES (:id, :uri, :kind, :inferred, :parent, :state, :cascade, :account,"
+                    " :observed, :deleted_at)"
+                ),
+                {
+                    "id": id_base + position,
+                    "uri": uri,
+                    "kind": kind,
+                    "inferred": kind == "repost",
+                    "parent": None if kind == "root" else parent,
+                    "state": "none" if kind == "root" else "orphan",
+                    "cascade": cascade_id,
+                    "account": account_id,
+                    "observed": observed,
+                    "deleted_at": (
+                        observed + timedelta(seconds=TOMBSTONE_DELAY_SECONDS) if deleted else None
+                    ),
+                },
+            )
+    return cascade_id
+
+
+def set_checkpoint(engine: Any, cursor_us: int, *, source: str = "test-replay") -> None:
+    """Write (or move) an ingest checkpoint at stream time ``cursor_us``."""
+    from sqlalchemy import text
+
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO ingest_checkpoints (source, dialect, host, cursor_time_us)"
+                " VALUES (:s, 'v2', 'test', :c) ON CONFLICT (source) DO UPDATE"
+                " SET cursor_time_us = EXCLUDED.cursor_time_us, updated_at = now()"
+            ),
+            {"s": source, "c": cursor_us},
+        )
+
+
+ENRICH_COUNTERS = (
+    "event_count",
+    "reply_count",
+    "quote_count",
+    "repost_count",
+    "unique_accounts",
+    "max_depth",
+    "orphan_count",
+    "disconnected_count",
+    "deleted_count",
+    "order_violation_count",
+    "events_1h",
+)
+
+
+def enrich_projection(engine: Any) -> dict[str, Any]:
+    """What enrich derived, keyed by natural keys only (no surrogate ids): per event uri the
+    parent state, the resolved parent's uri (a join, not the id) and the depth; per cascade
+    root the counters, times, flag, rolled_up_at and rollup_version."""
+    from sqlalchemy import text
+
+    with engine.connect() as connection:
+        events = {
+            uri: (state, parent, depth, root)
+            for uri, state, parent, depth, root in connection.execute(
+                text(
+                    "SELECT e.uri, e.parent_state, p.uri, e.depth, c.root_uri FROM events e"
+                    " LEFT JOIN events p ON p.id = e.parent_event_id"
+                    " LEFT JOIN cascades c ON c.id = e.cascade_id ORDER BY e.uri"
+                )
+            )
+        }
+        columns = ", ".join(ENRICH_COUNTERS)
+        cascades = {
+            row[0]: tuple(row[1:])
+            for row in connection.execute(
+                text(
+                    "SELECT root_uri, "
+                    + columns
+                    + ", first_event_at, last_event_at, enrich_dirty, rolled_up_at,"
+                    " rollup_version FROM cascades ORDER BY root_uri"
+                )
+            )
+        }
+    return {"events": events, "cascades": cascades}
+
+
+def truncate_application_tables(engine: Any) -> None:
+    """Empty every application table (used at the start of each database Hypothesis example)."""
+    from sqlalchemy import text
+
+    with engine.begin() as connection:
+        connection.execute(
+            text("TRUNCATE " + ", ".join(APPLICATION_TABLES) + " RESTART IDENTITY CASCADE")
+        )

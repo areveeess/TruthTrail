@@ -23,10 +23,11 @@ Three pieces:
 * ``flush``: one transaction per batch, in this order: accounts and claims upserted by their
   unique keys, cascades inserted once per root, events inserted ``ON CONFLICT (uri) DO
   NOTHING RETURNING uri`` (inserted and duplicate counts come from RETURNING, never rowcount),
-  touched cascades marked dirty and overflow tallies applied, tombstones by key, account-wide
+  overflow tallies applied, tombstones by key, account-wide
   tombstones (only rows observed at or before the account event's stream time, so a replay
-  that meets the action again cannot remove content the account published after it), then the
-  checkpoint with ``GREATEST`` so it only moves forward. Inserts come
+  that meets the action again cannot remove content the account published after it), every
+  touched cascade marked dirty (``mark_cascades_dirty``, unconditionally), then the checkpoint
+  with ``GREATEST`` so it only moves forward. Inserts come
   before tombstones, so a create and its delete in one batch end as a tombstone; a replayed
   create can never overwrite a tombstone, and the cascade insert never relinks a claim.
 
@@ -747,6 +748,21 @@ def _write_checkpoint(
     )
 
 
+def mark_cascades_dirty(connection: Connection, cascade_ids: Collection[int]) -> None:
+    """Set ``enrich_dirty`` on every touched cascade, UNCONDITIONALLY (T-03-43).
+
+    The UPDATE has no ``enrich_dirty IS FALSE`` filter on purpose: under READ COMMITTED a
+    filtered UPDATE would read the flag from its snapshot, find it still true while an enrich
+    transaction holds the cascade row (enrich clears it at commit) and match nothing, so the
+    flag would be lost. Unfiltered, the UPDATE waits for enrich's ``FOR UPDATE`` lock and sets
+    the flag after enrich commits. Ids are sorted so concurrent writers lock in one order.
+    """
+    if cascade_ids:
+        connection.execute(
+            update(Cascade).where(Cascade.id.in_(sorted(cascade_ids))).values(enrich_dirty=True)
+        )
+
+
 def _flush_in(
     connection: Connection, batch: Batch, *, source: str, dialect: str, host: str
 ) -> FlushResult:
@@ -761,12 +777,7 @@ def _flush_in(
         connection.execute(
             _ROOT_DELETED, {"ids": [i for i, _at in roots], "times": [at for _i, at in roots]}
         )
-    if touched:
-        connection.execute(
-            update(Cascade)
-            .where(Cascade.id.in_(sorted(touched)), Cascade.enrich_dirty.is_(False))
-            .values(enrich_dirty=True)
-        )
+    mark_cascades_dirty(connection, touched)
     if batch.max_time_us is not None:
         _write_checkpoint(connection, batch.max_time_us, source=source, dialect=dialect, host=host)
     return FlushResult(
